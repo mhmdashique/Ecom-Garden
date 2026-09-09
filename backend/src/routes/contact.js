@@ -70,12 +70,12 @@ router.post("/", async (req, res) => {
       preview: Boolean(mail?.preview),
       subject:
         mail?.subject ||
-        `GreenNest contact: ${subject || "New customer message"}`,
+        `Verdant contact: ${subject || "New customer message"}`,
       customer: {
         to: email,
         sent: Boolean(customerMail?.sent),
         preview: Boolean(customerMail?.preview),
-        subject: customerMail?.subject || "We got your message — GreenNest",
+        subject: customerMail?.subject || "We got your message — Verdant",
       },
       error: mailError || null,
     },
@@ -119,18 +119,18 @@ router.put("/:id/reply", auth, adminOnly, async (req, res) => {
   try {
     await sendMail({
       to: entry.email,
-      subject: `Re: ${entry.subject || "Your message"} — GreenNest`,
+      subject: `Re: ${entry.subject || "Your message"} — Verdant`,
       text: [
         `Hi ${entry.name},`,
         "",
-        "Thank you for reaching out to GreenNest. Here is our reply:",
+        "Thank you for reaching out to Verdant. Here is our reply:",
         "",
         message.trim(),
         "",
         "Warm regards,",
-        "The GreenNest Team 🌿",
+        "The Verdant Team 🌿",
       ].join("\n"),
-      html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#f6f7f4;padding:32px;border-radius:16px"><div style="background:#0a2e1f;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px"><h1 style="color:#6ee7b7;margin:0;font-size:22px">🌿 GreenNest</h1></div><h2 style="color:#0a2e1f;margin-top:0">Re: ${escapeHtml(entry.subject || "Your message")}</h2><p style="color:#444;line-height:1.6">Hi ${escapeHtml(entry.name)},</p><p style="color:#444;line-height:1.6">Thank you for reaching out to GreenNest. Here is our reply:</p><div style="background:#fff;border:1px solid #d1fae5;border-radius:12px;padding:16px;margin:20px 0"><p style="margin:0;color:#065f46;font-size:14px;white-space:pre-wrap">${escapeHtml(message.trim())}</p></div><p style="color:#666;font-size:13px">Warm regards,<br/><b>The GreenNest Team 🌿</b></p></div>`,
+      html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#f6f7f4;padding:32px;border-radius:16px"><div style="background:#0a2e1f;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px"><h1 style="color:#6ee7b7;margin:0;font-size:22px">🌿 Verdant</h1></div><h2 style="color:#0a2e1f;margin-top:0">Re: ${escapeHtml(entry.subject || "Your message")}</h2><p style="color:#444;line-height:1.6">Hi ${escapeHtml(entry.name)},</p><p style="color:#444;line-height:1.6">Thank you for reaching out to Verdant. Here is our reply:</p><div style="background:#fff;border:1px solid #d1fae5;border-radius:12px;padding:16px;margin:20px 0"><p style="margin:0;color:#065f46;font-size:14px;white-space:pre-wrap">${escapeHtml(message.trim())}</p></div><p style="color:#666;font-size:13px">Warm regards,<br/><b>The Verdant Team 🌿</b></p></div>`,
     });
   } catch (error) {
     console.error("[mail] contact reply failed:", error.message);

@@ -38,10 +38,10 @@ export default function Navbar(){
             <Link to="/" className="flex items-center gap-3 shrink-0">
               <div className="w-11 h-11 rounded-xl bg-[#0a2e1f] text-white grid place-items-center text-xl border-2 border-emerald-200">🌿</div>
               <div className="leading-none hidden sm:block">
-                <div className="font-serif text-[20px] font-black tracking-tight text-[#0a2e1f]">GreenNest</div>
+                <div className="font-serif text-[20px] font-black tracking-tight text-[#0a2e1f]">Verdant</div>
                 <div className="text-[10px] tracking-[0.18em] uppercase font-bold text-gray-500 -mt-1">Est. 2022 • Botanical</div>
               </div>
-              <div className="sm:hidden font-black text-[#0a2e1f]">GreenNest</div>
+              <div className="sm:hidden font-black text-[#0a2e1f]">Verdant</div>
             </Link>
 
             {/* desktop nav - underline style */}

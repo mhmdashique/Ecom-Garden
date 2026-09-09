@@ -148,7 +148,7 @@ export default function Landing(){
                 <h3 className="mt-3 text-2xl md:text-3xl font-black leading-tight">{t('curated_feature_title').split(' & ')[0]} &<br/>{t('curated_feature_title').split(' & ')[1] || ''}</h3>
                 <p className="mt-2 text-sm text-white/80 max-w-[420px]">{t('curated_feature_desc')}</p>
                 <div className="mt-4 flex gap-2">
-                  <a href="https://wa.me/919876543210?text=Hi GreenNest, I need landscape design for my space" target="_blank" className="bg-white text-[#0a2e1f] px-5 py-2.5 rounded-full text-sm font-black">{t('curated_feature_cta1')}</a>
+                  <a href="https://wa.me/919876543210?text=Hi Verdant, I need landscape design for my space" target="_blank" className="bg-white text-[#0a2e1f] px-5 py-2.5 rounded-full text-sm font-black">{t('curated_feature_cta1')}</a>
                   <a href="/shop" className="bg-white/15 backdrop-blur border border-white/20 text-white px-5 py-2.5 rounded-full text-sm font-bold">{t('curated_feature_cta2')}</a>
                 </div>
               </div>

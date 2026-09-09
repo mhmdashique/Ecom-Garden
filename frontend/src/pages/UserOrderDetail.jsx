@@ -199,7 +199,7 @@ export default function UserOrderDetail() {
       180,
     );
     doc.text(lines, 14, 52);
-    doc.text("GreenNest • Follow seasonal reminders for best growth", 14, 280);
+    doc.text("Verdant • Follow seasonal reminders for best growth", 14, 280);
     doc.save(`${plant.name}-care-guide.pdf`);
     success(`${plant.name} care guide downloaded`);
   };
@@ -215,7 +215,7 @@ export default function UserOrderDetail() {
       try {
         await navigator.share({
           title: `Order ${order.id.slice(0, 8)}`,
-          text: `GreenNest order ${order.id}`,
+          text: `Verdant order ${order.id}`,
           url,
         });
       } catch {}
@@ -246,7 +246,7 @@ export default function UserOrderDetail() {
     doc.setFontSize(8);
     doc.text("🌿", 12.5, 15.5);
     doc.setFontSize(14);
-    doc.text("GreenNest", 24, 13);
+    doc.text("Verdant", 24, 13);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(167, 243, 208);
@@ -385,7 +385,7 @@ export default function UserOrderDetail() {
     doc.setTextColor(80, 80, 80);
     doc.setFontSize(6.5);
     doc.text(
-      "Thank you for growing with GreenNest! • GST bill on request • Questions? hello@greenest.com • +91 98765 43210",
+      "Thank you for growing with Verdant! • GST bill on request • Questions? hello@greenest.com • +91 98765 43210",
       pageW / 2,
       fy,
       { align: "center" },
@@ -405,7 +405,7 @@ export default function UserOrderDetail() {
       fy + 4,
       { align: "right" },
     );
-    doc.save(`GreenNest-Invoice-${o.id.slice(0, 8).toUpperCase()}.pdf`);
+    doc.save(`Verdant-Invoice-${o.id.slice(0, 8).toUpperCase()}.pdf`);
     success("Invoice downloaded");
   };
   const submitCancel = async () => {

@@ -252,7 +252,7 @@ export default function Checkout() {
                 </div>
                 <div className="mt-4 flex flex-col sm:flex-row gap-3 justify-center">
                   <a
-                    href={`https://wa.me/919876543210?text=Hi GreenNest, order #${done.id} - please confirm`}
+                    href={`https://wa.me/919876543210?text=Hi Verdant, order #${done.id} - please confirm`}
                     target="_blank"
                     className="bg-[#25D366] text-white px-6 py-3 rounded-full font-black text-sm"
                   >

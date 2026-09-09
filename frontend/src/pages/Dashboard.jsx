@@ -478,7 +478,7 @@ export default function Dashboard() {
     doc.setFontSize(8);
     doc.text("🌿", 12.5, 15.5);
     doc.setFontSize(14);
-    doc.text("GreenNest", 24, 13);
+    doc.text("Verdant", 24, 13);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(167, 243, 208);
@@ -624,7 +624,7 @@ export default function Dashboard() {
     doc.setTextColor(80, 80, 80);
     doc.setFontSize(6.5);
     doc.text(
-      "Thank you for growing with GreenNest! • GST bill on request • Questions? hello@greenest.com • +91 98765 43210",
+      "Thank you for growing with Verdant! • GST bill on request • Questions? hello@greenest.com • +91 98765 43210",
       pageW / 2,
       fy,
       { align: "center" },
@@ -644,7 +644,7 @@ export default function Dashboard() {
       fy + 4,
       { align: "right" },
     );
-    doc.save(`GreenNest-Invoice-${order.id.slice(0, 8).toUpperCase()}.pdf`);
+    doc.save(`Verdant-Invoice-${order.id.slice(0, 8).toUpperCase()}.pdf`);
     success("Invoice downloaded — new design");
   };
   const downloadCareGuide = (plant) => {
@@ -670,7 +670,7 @@ export default function Dashboard() {
       180,
     );
     doc.text(lines, 14, 52);
-    doc.text("GreenNest • Follow seasonal reminders for best growth", 14, 280);
+    doc.text("Verdant • Follow seasonal reminders for best growth", 14, 280);
     doc.save(`${plant.name}-care-guide.pdf`);
     success(`${plant.name} care guide downloaded`);
   };
@@ -750,7 +750,7 @@ export default function Dashboard() {
                 <div className="w-7 h-7 rounded-md bg-zinc-900 text-white grid place-items-center">
                   <Ico.leaf className="w-4 h-4" />
                 </div>
-                <span className="font-semibold text-sm text-zinc-900">GreenNest</span>
+                <span className="font-semibold text-sm text-zinc-900">Verdant</span>
               </div>
               <button onClick={() => setMobileNav(false)} className="lg:hidden w-7 h-7 rounded-md border border-zinc-200 grid place-items-center text-zinc-500 hover:bg-zinc-50">✕</button>
             </div>

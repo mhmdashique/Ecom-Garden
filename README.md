@@ -1,4 +1,4 @@
-# GreenNest - Plant Marketing & Selling Platform
+# Verdant - Plant Marketing & Selling Platform
 
 Full-stack e-commerce for plants.
 

@@ -40,7 +40,7 @@ export default function Login() {
             to="/"
             className="inline-flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-[#0a2e1f]"
           >
-            ← GreenNest
+            ← Verdant
           </Link>
           <div className="mt-6 flex items-center gap-3">
             <span className="w-10 h-10 rounded-xl bg-[#0a2e1f] text-white grid place-items-center">

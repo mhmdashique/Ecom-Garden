@@ -42,7 +42,7 @@ export function AdminLogin() {
           Admin Login
         </h1>
         <p className="text-center text-sm text-gray-500">
-          Secure access for GreenNest team only
+          Secure access for Verdant team only
         </p>
         <form onSubmit={submit} className="mt-6 space-y-4">
           {err && (
@@ -307,7 +307,7 @@ export function AdminDashboard() {
       doc.setFont("helvetica", "bold");
       doc.text("G", 8.5, 10);
       doc.setFontSize(10);
-      doc.text("GreenNest", 16, 10);
+      doc.text("Verdant", 16, 10);
       doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
       doc.text(
@@ -345,7 +345,7 @@ export function AdminDashboard() {
       doc.setTextColor(120, 120, 120);
       doc.setFontSize(6);
       doc.text(
-        "© GreenNest • H34Q+9FP, Pezhummoodu, Thiruvananthapuram, Kerala 695575 • GST Invoice on request",
+        "© Verdant • H34Q+9FP, Pezhummoodu, Thiruvananthapuram, Kerala 695575 • GST Invoice on request",
         margin,
         pageH - 8,
       );
@@ -385,7 +385,7 @@ export function AdminDashboard() {
     doc.setFontSize(7);
     doc.setTextColor(80, 80, 80);
     doc.text(
-      `Total records: ${rows.length} • Printed from GreenNest Admin`,
+      `Total records: ${rows.length} • Printed from Verdant Admin`,
       margin,
       y + 6,
     );
@@ -431,7 +431,7 @@ export function AdminDashboard() {
         @media print{body{padding:0} .no-print{display:none}}
       </style></head><body>
       <div class="header">
-        <div style="display:flex;gap:10px;align-items:center"><div style="width:32px;height:32px;background:#10b981;border-radius:8px;display:grid;place-items:center;font-weight:900">🌿</div><div><div style="font-weight:900">GreenNest</div><div style="font-size:11px;color:#a7f3d0">Pezhummoodu, Thiruvananthapuram, Kerala • H34Q+9FP</div></div></div>
+        <div style="display:flex;gap:10px;align-items:center"><div style="width:32px;height:32px;background:#10b981;border-radius:8px;display:grid;place-items:center;font-weight:900">🌿</div><div><div style="font-weight:900">Verdant</div><div style="font-size:11px;color:#a7f3d0">Pezhummoodu, Thiruvananthapuram, Kerala • H34Q+9FP</div></div></div>
         <div style="text-align:right"><div style="font-weight:900;letter-spacing:0.08em">INVOICE</div><div style="font-size:12px;margin-top:4px">#${order.id.slice(0, 8).toUpperCase()} • ${new Date(order.created_at).toLocaleDateString()}</div><div style="margin-top:6px"><span class="badge">${order.status.toUpperCase()}</span> <span class="badge" style="background:#fff;color:#0a2e1f;border:1px solid #e5e7eb">${order.payment_method}</span></div></div>
       </div>
       <div class="grid2">
@@ -450,7 +450,7 @@ export function AdminDashboard() {
           .join("")}
       </tbody></table>
       <div class="totals"><div><span>Subtotal</span><span>₹${subtotal.toFixed(2)}</span></div><div><span>Shipping</span><span>${shipping === 0 ? "FREE" : `₹${shipping.toFixed(2)}`}</span></div><div class="grand"><span>TOTAL</span><span>₹${(order.total_amount || 0).toFixed(2)}</span></div></div>
-      <div class="footer">Thank you for growing with GreenNest! • GST bill on request • hello@greenest.com • +91 98765 43210<br/>H34Q+9FP, Pezhummoodu, Thiruvananthapuram, Kerala 695575 • This is a computer generated invoice</div>
+      <div class="footer">Thank you for growing with Verdant! • GST bill on request • hello@greenest.com • +91 98765 43210<br/>H34Q+9FP, Pezhummoodu, Thiruvananthapuram, Kerala 695575 • This is a computer generated invoice</div>
       <div class="no-print" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="background:#0a2e1f;color:#fff;padding:10px 18px;border-radius:999px;border:none;font-weight:800;cursor:pointer">Print</button> <button onclick="window.close()" style="background:#fff;border:1px solid #e5e7eb;padding:10px 18px;border-radius:999px;font-weight:700;cursor:pointer;margin-left:8px">Close</button></div>
       </body></html>
     `);
@@ -604,7 +604,7 @@ export function AdminDashboard() {
               <div
                 className={`font-black text-sm leading-none ${dark ? "text-white" : "text-gray-900"}`}
               >
-                GreenNest
+                Verdant
               </div>
               <div
                 className={`text-[11px] font-medium ${dark ? "text-white/50" : "text-gray-500"}`}
@@ -1019,7 +1019,7 @@ export function AdminDashboard() {
             <span
               className={`font-black text-sm ${dark ? "text-white" : "text-gray-900"}`}
             >
-              GreenNest Admin
+              Verdant Admin
             </span>
           </div>
           <span
@@ -3256,7 +3256,7 @@ export function AdminOrderView() {
         @media print{body{padding:0} .no-print{display:none}}
       </style></head><body>
       <div class="header">
-        <div style="display:flex;gap:10px;align-items:center"><div style="width:32px;height:32px;background:#10b981;border-radius:8px;display:grid;place-items:center;font-weight:900">🌿</div><div><div style="font-weight:900">GreenNest</div><div style="font-size:11px;color:#a7f3d0">Pezhummoodu, Thiruvananthapuram, Kerala • H34Q+9FP</div></div></div>
+        <div style="display:flex;gap:10px;align-items:center"><div style="width:32px;height:32px;background:#10b981;border-radius:8px;display:grid;place-items:center;font-weight:900">🌿</div><div><div style="font-weight:900">Verdant</div><div style="font-size:11px;color:#a7f3d0">Pezhummoodu, Thiruvananthapuram, Kerala • H34Q+9FP</div></div></div>
         <div style="text-align:right"><div style="font-weight:900;letter-spacing:0.08em">INVOICE</div><div style="font-size:12px;margin-top:4px">${ord.id} • ${new Date(ord.created_at).toLocaleDateString()}</div><div style="margin-top:6px"><span class="badge">${ord.status.toUpperCase()}</span> <span class="badge" style="background:#fff;color:#0a2e1f;border:1px solid #e5e7eb">${ord.payment_method}</span></div></div>
       </div>
       <div class="grid2">
@@ -3275,7 +3275,7 @@ export function AdminOrderView() {
           .join("")}
       </tbody></table>
       <div class="totals"><div><span>Subtotal</span><span>₹${subtotal.toFixed(2)}</span></div><div><span>Shipping</span><span>${shipping === 0 ? "FREE" : `₹${shipping.toFixed(2)}`}</span></div><div class="grand"><span>TOTAL</span><span>₹${(ord.total_amount || 0).toFixed(2)}</span></div></div>
-      <div class="footer">Thank you for growing with GreenNest! • GST bill on request • hello@greenest.com • +91 98765 43210<br/>H34Q+9FP, Pezhummoodu, Thiruvananthapuram, Kerala 695575 • This is a computer generated invoice</div>
+      <div class="footer">Thank you for growing with Verdant! • GST bill on request • hello@greenest.com • +91 98765 43210<br/>H34Q+9FP, Pezhummoodu, Thiruvananthapuram, Kerala 695575 • This is a computer generated invoice</div>
       <div class="no-print" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="background:#0a2e1f;color:#fff;padding:10px 18px;border-radius:999px;border:none;font-weight:800;cursor:pointer">Print</button> <button onclick="window.close()" style="background:#fff;border:1px solid #e5e7eb;padding:10px 18px;border-radius:999px;font-weight:700;cursor:pointer;margin-left:8px">Close</button></div>
       </body></html>
     `);
@@ -3776,7 +3776,7 @@ export function AdminOrderView() {
                     🖨️ Invoice
                   </button>
                   <a
-                    href={`https://wa.me/${cPhone?.replace(/[^0-9]/g, "") || "919876543210"}?text=Hi ${cName}, your GreenNest order ${order.id.slice(0, 8)} is ${order.status}`}
+                    href={`https://wa.me/${cPhone?.replace(/[^0-9]/g, "") || "919876543210"}?text=Hi ${cName}, your Verdant order ${order.id.slice(0, 8)} is ${order.status}`}
                     target="_blank"
                     className="bg-emerald-600 text-white py-2.5 rounded-full font-black text-sm text-center"
                   >

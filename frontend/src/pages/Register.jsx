@@ -106,7 +106,7 @@ export default function Register() {
             to="/"
             className="text-sm font-bold text-gray-600 hover:text-[#0a2e1f]"
           >
-            ← GreenNest
+            ← Verdant
           </Link>
           <h1 className="mt-3 text-[28px] font-black tracking-tight leading-none">
             {t("auth_join_us")}{" "}
