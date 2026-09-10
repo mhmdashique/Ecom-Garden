@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "build": "npm run build --prefix ../frontend"
+    "build": "npm run build --prefix ../frontend",
+    "vercel-build": "npm run build"
   },
   "dependencies": {
     "@supabase/server": "^1.5.3",
