@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "build": "cd ../frontend && npm run build"
   },
   "dependencies": {
     "@supabase/server": "^1.5.3",

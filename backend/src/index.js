@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import path from "path";
 
 import authRoutes from "./routes/auth.js";
 import plantRoutes from "./routes/plants.js";
@@ -25,11 +26,18 @@ app.use(rateLimit({ windowMs: 60 * 1000, max: 200 }));
 app.get("/api/health", (req, res) =>
   res.json({ ok: true, time: new Date().toISOString() }),
 );
+
+const __dirname = path.resolve();
+const FRONTEND_DIST = path.join(__dirname, "../frontend/dist");
+
+app.use(express.static(FRONTEND_DIST));
+
 app.get("/", (req, res) =>
   res.type("html").send(
     `<!DOCTYPE html><html><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f6f7f4;color:#0a2e1f"><div style="text-align:center"><h1>🌿 Verdant API</h1><p style="color:#666">Backend is running. Open the frontend at <a href="http://localhost:5173">http://localhost:5173</a></p></div></body></html>`
   )
 );
+
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/plants", plantRoutes);
@@ -39,7 +47,6 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/contact", contactRoutes);
 
-// wishlist simple
 import { db, genId } from "./utils/memoryStore.js";
 import { auth } from "./middleware/auth.js";
 app.get("/api/wishlist", auth, (req, res) =>
