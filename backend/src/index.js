@@ -102,20 +102,26 @@ if(fs.existsSync(FRONTEND_DIST)){
   );
 }
 
+export default app;
+
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || "0.0.0.0";
-const server = app.listen(PORT, HOST, () =>
-  console.log(`Backend running on http://${HOST}:${PORT} — health: http://${HOST}:${PORT}/api/health`),
-);
+let server;
+if(!process.env.VERCEL){
+  server = app.listen(PORT, HOST, () =>
+    console.log(`Backend running on http://${HOST}:${PORT} — health: http://${HOST}:${PORT}/api/health`),
+  );
+}
 
-server.on("error", (error) => {
-  if (error.code === "EADDRINUSE") {
-    console.error(
-      `Port ${PORT} is already in use. Stop the existing backend before starting another one.`,
-    );
-    process.exitCode = 0;
-    return;
-  }
-
-  throw error;
-});
+if(server){
+  server.on("error", (error) => {
+    if (error.code === "EADDRINUSE") {
+      console.error(
+        `Port ${PORT} is already in use. Stop the existing backend before starting another one.`,
+      );
+      process.exitCode = 0;
+      return;
+    }
+    throw error;
+  });
+}
