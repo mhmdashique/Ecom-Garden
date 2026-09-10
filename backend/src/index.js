@@ -25,6 +25,14 @@ app.use(rateLimit({ windowMs: 60 * 1000, max: 200 }));
 app.get("/api/health", (req, res) =>
   res.json({ ok: true, time: new Date().toISOString() }),
 );
+app.get("/", (req, res) =>
+  res.json({
+    name: "Verdant API",
+    status: "running",
+    health: "/api/health",
+    docs: "Frontend should be served separately or via Vite proxy on port 5173",
+  }),
+);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/plants", plantRoutes);
