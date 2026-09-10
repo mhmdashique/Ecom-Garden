@@ -24,3 +24,9 @@ Thumbs.db
 # Temp files
 *.tmp
 *.temp
+
+# Local agent/tool metadata
+.agents/
+.claude/
+backend/.agents/
+*.p.id
