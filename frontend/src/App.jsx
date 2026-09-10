@@ -1,3 +1,4 @@
+import React, { Suspense } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -8,21 +9,30 @@ import {
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import SocialSidebar from "./components/SocialSidebar";
-import Landing from "./pages/Landing";
-import About from "./pages/About";
-import Shop from "./pages/Shop";
-import PlantDetail from "./pages/PlantDetail";
-import Cart from "./pages/Cart";
-import Checkout from "./pages/Checkout";
-import Contact from "./pages/Contact";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
-import UserOrderDetail from "./pages/UserOrderDetail";
-import { AdminLogin, AdminDashboard, AdminOrderView } from "./pages/Admin";
 import { useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./components/Toast";
 import { LanguageProvider } from "./context/LanguageContext";
+
+const Landing = React.lazy(() => import("./pages/Landing"));
+const About = React.lazy(() => import("./pages/About"));
+const Shop = React.lazy(() => import("./pages/Shop"));
+const PlantDetail = React.lazy(() => import("./pages/PlantDetail"));
+const Cart = React.lazy(() => import("./pages/Cart"));
+const Checkout = React.lazy(() => import("./pages/Checkout"));
+const Contact = React.lazy(() => import("./pages/Contact"));
+const Login = React.lazy(() => import("./pages/Login"));
+const Register = React.lazy(() => import("./pages/Register"));
+const Dashboard = React.lazy(() => import("./pages/Dashboard"));
+const UserOrderDetail = React.lazy(() => import("./pages/UserOrderDetail"));
+const AdminLogin = React.lazy(() =>
+  import("./pages/Admin").then((m) => ({ default: m.AdminLogin }))
+);
+const AdminDashboard = React.lazy(() =>
+  import("./pages/Admin").then((m) => ({ default: m.AdminDashboard }))
+);
+const AdminOrderView = React.lazy(() =>
+  import("./pages/Admin").then((m) => ({ default: m.AdminOrderView }))
+);
 
 function Protected({ children, admin }) {
   const { user } = useAuth();
@@ -42,7 +52,14 @@ function Layout() {
       <main
         className={isAdminRoute ? "min-h-screen bg-[#f6f7f4]" : "min-h-[70vh]"}
       >
-        <Routes>
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center min-h-[70vh]">
+              <div className="w-8 h-8 border-2 border-gray-200 border-t-[#0a2e1f] rounded-full animate-spin"></div>
+            </div>
+          }
+        >
+          <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/about" element={<About />} />
           <Route path="/shop" element={<Shop />} />
@@ -86,6 +103,7 @@ function Layout() {
             }
           />
         </Routes>
+      </Suspense>
       </main>
       {!isAdminRoute && <Footer />}
     </>

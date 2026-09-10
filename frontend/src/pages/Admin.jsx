@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import api from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, useParams } from "react-router-dom";
-import jsPDF from "jspdf";
 import { useToast } from "../components/Toast";
 import PlantEditDrawer from "../components/PlantEditDrawer";
 
@@ -288,7 +287,8 @@ export function AdminDashboard() {
       r.readAsDataURL(file);
     }
   };
-  const downloadPDF = (title, headers, rows, filename) => {
+  const downloadPDF = async (title, headers, rows, filename) => {
+    const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF();
     const pageW = 210,
       pageH = 297,

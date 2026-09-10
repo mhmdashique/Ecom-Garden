@@ -3,7 +3,6 @@ import api from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { Link, useNavigate } from "react-router-dom";
-import jsPDF from "jspdf";
 import { useToast } from "../components/Toast";
 import { useLanguage } from "../context/LanguageContext";
 
@@ -460,7 +459,8 @@ export default function Dashboard() {
     });
     success("Items added to cart — Buy again!");
   };
-  const downloadInvoice = (order) => {
+  const downloadInvoice = async (order) => {
+    const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF("p", "mm", "a4");
     const pageW = 210,
       pageH = 297,
@@ -647,7 +647,8 @@ export default function Dashboard() {
     doc.save(`Verdant-Invoice-${order.id.slice(0, 8).toUpperCase()}.pdf`);
     success("Invoice downloaded — new design");
   };
-  const downloadCareGuide = (plant) => {
+  const downloadCareGuide = async (plant) => {
+    const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text(`${plant.name} - Care Guide`, 14, 18);
@@ -674,8 +675,10 @@ export default function Dashboard() {
     doc.save(`${plant.name}-care-guide.pdf`);
     success(`${plant.name} care guide downloaded`);
   };
-  const downloadAllGuides = () => {
-    ownedPlants.forEach((p) => setTimeout(() => downloadCareGuide(p), 300));
+  const downloadAllGuides = async () => {
+    for (const p of ownedPlants) {
+      await downloadCareGuide(p);
+    }
   };
 
   const ownedPlants = useMemo(() => {

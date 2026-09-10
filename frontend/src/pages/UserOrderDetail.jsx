@@ -4,7 +4,6 @@ import api from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../components/Toast";
-import jsPDF from "jspdf";
 
 const Ico = {
   box: (props) => (
@@ -176,7 +175,8 @@ export default function UserOrderDetail() {
     success("Added to cart");
     setTimeout(() => nav("/cart"), 400);
   };
-  const downloadCareGuide = (plant) => {
+  const downloadCareGuide = async (plant) => {
+    const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text(`${plant.name} - Care Guide`, 14, 18);
@@ -228,7 +228,8 @@ export default function UserOrderDetail() {
     setRated(true);
     success(`Thanks! You rated ${v}★`);
   };
-  const downloadInvoice = (o) => {
+  const downloadInvoice = async (o) => {
+    const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF("p", "mm", "a4");
     const pageW = 210,
       pageH = 297,
