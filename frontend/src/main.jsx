@@ -7,6 +7,6 @@ import { CartProvider } from './context/CartContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AuthProvider><CartProvider><App /></CartProvider></AuthProvider>
+    <CartProvider><AuthProvider><App /></AuthProvider></CartProvider>
   </StrictMode>,
 )
