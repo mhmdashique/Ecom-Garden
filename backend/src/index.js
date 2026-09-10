@@ -45,19 +45,9 @@ app.use(morgan("tiny"));
 app.use(rateLimit({ windowMs: 60 * 1000, max: 200 }));
 
 app.get("/api/health", (req, res) =>
-  res.json({ ok: true, time: new Date().toISOString() }),
+  res.json({ ok: true, time: new Date().toISOString(), host: req.get("host"), tunnel: "https://qkjlrz41-5000.inc1.devtunnels.ms" }),
 );
-
-const __dirname = path.resolve();
-const FRONTEND_DIST = path.join(__dirname, "../frontend/dist");
-
-app.use(express.static(FRONTEND_DIST));
-
-app.get("/", (req, res) =>
-  res.type("html").send(
-    `<!DOCTYPE html><html><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f6f7f4;color:#0a2e1f"><div style="text-align:center"><h1>🌿 Verdant API</h1><p style="color:#666">Backend is running. Open the frontend at <a href="http://localhost:5173">http://localhost:5173</a></p></div></body></html>`
-  )
-);
+app.get("/api", (req,res)=> res.json({ ok:true, message:"Verdant API — use /api/health, /api/plants, /api/orders", docs:"https://qkjlrz41-5000.inc1.devtunnels.ms/api/health" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
@@ -90,6 +80,27 @@ app.delete("/api/wishlist/:id", auth, (req, res) => {
   db.wishlist.splice(idx, 1);
   res.json({ message: "removed" });
 });
+
+// — serve frontend via same tunnel (so https://qkjlrz41-5000.inc1.devtunnels.ms/ loads the app) —
+import fs from "fs";
+const __dirname = path.resolve();
+const FRONTEND_DIST = path.join(__dirname, "../frontend/dist");
+if(fs.existsSync(FRONTEND_DIST)){
+  app.use(express.static(FRONTEND_DIST));
+  // SPA fallback — serve index.html for non-api routes
+  app.get("*", (req, res, next)=>{
+    if(req.path.startsWith("/api")) return next();
+    const index = path.join(FRONTEND_DIST, "index.html");
+    if(fs.existsSync(index)) return res.sendFile(index);
+    return next();
+  });
+} else {
+  app.get("/", (req, res) =>
+    res.type("html").send(
+      `<!DOCTYPE html><html><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f6f7f4;color:#0a2e1f"><div style="text-align:center;max-width:560px;padding:24px"><h1>🌿 Verdant API</h1><p style="color:#666">Backend is running.</p><p><a href="/api/health" style="color:#0a2e1f;font-weight:700">/api/health</a> • Tunnel: <a href="https://qkjlrz41-5000.inc1.devtunnels.ms/api/health" style="color:#0a2e1f">https://qkjlrz41-5000.inc1.devtunnels.ms/api/health</a></p><p style="color:#999;font-size:13px;margin-top:12px">Frontend not built — run <code>npm run build</code> in frontend</p></div></body></html>`
+    )
+  );
+}
 
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || "0.0.0.0";
