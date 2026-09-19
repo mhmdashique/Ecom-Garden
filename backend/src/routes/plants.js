@@ -46,10 +46,22 @@ const plantCreateSchema = Joi.object({
   care_instructions: Joi.string().allow("", null).max(2000),
   rating: Joi.number().min(0).max(5).allow(null, ""),
   images: Joi.alternatives().try(
-    Joi.array().items(Joi.string().uri({ allowRelative: true }).allow("")),
+    Joi.array().items(Joi.string().allow("")),
     Joi.string().allow("", null),
   ),
   image_url: Joi.string().allow("", null),
+  variants: Joi.array()
+    .items(
+      Joi.object({
+        id: Joi.string().allow("", null),
+        label: Joi.string().min(1).max(100).required(),
+        priceMin: Joi.number().min(0).required(),
+        priceMax: Joi.number().min(0).allow(null, ""),
+        disabled: Joi.boolean().allow(null),
+        note: Joi.string().allow("", null),
+      })
+    )
+    .allow(null),
   type: Joi.string().allow("", null),
   care_level: Joi.string().allow("", null),
   origin: Joi.string().allow("", null),
@@ -73,6 +85,19 @@ function normalizeImages(data) {
   if (typeof data.image_url === "string" && data.image_url.trim())
     return [data.image_url.trim()];
   return undefined;
+}
+
+const CATEGORY_ID_MAP = { "1": "Indoor Plants", "2": "Outdoor Plants", "3": "Succulents", "4": "Flowering Plants", "5": "Seeds & Tools" };
+
+function resolveCategoryIdMaybe(raw) {
+  if (!raw) return raw;
+  // already uuid
+  if (String(raw).match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return raw;
+  // numeric 1-5 -> name lookup, try to find uuid in memory db
+  const name = CATEGORY_ID_MAP[String(raw)] || String(raw);
+  const found = db.categories.find((c) => c.name.toLowerCase() === name.toLowerCase() || c.id === String(raw));
+  // if found and found.id is uuid in supabase, use it; else keep name for supabase name lookup (handled async)
+  return found ? found.id : raw;
 }
 
 function sanitizePayload(raw, isUpdate = false) {
@@ -109,9 +134,27 @@ function sanitizePayload(raw, isUpdate = false) {
     payload.stock_qty !== ""
   )
     payload.stock_qty = Number(payload.stock_qty);
+  // sunlight normalization - trim
+  if (payload.sunlight) payload.sunlight = String(payload.sunlight).trim();
+  // variants normalization - keep if provided
+  if (payload.variants !== undefined) {
+    if (!Array.isArray(payload.variants)) payload.variants = [];
+    // ensure each variant has priceMin as number
+    payload.variants = payload.variants.map((v) => ({
+      ...v,
+      priceMin: v.priceMin !== undefined ? Number(v.priceMin) : v.priceMin,
+      priceMax: v.priceMax !== undefined ? Number(v.priceMax) : v.priceMax,
+    }));
+  }
   // stock_status auto
   if (payload.stock_qty !== undefined && !payload.stock_status) {
     payload.stock_status = deriveStockStatus(Number(payload.stock_qty) || 0);
+  }
+  // category mapping sync attempt (uuid vs 1-5)
+  if (payload.category_id !== undefined && payload.category_id !== null) {
+    const resolved = resolveCategoryIdMaybe(payload.category_id);
+    // if resolved is still name like "Indoor Plants", keep as is for async lookup; if uuid use it
+    payload.category_id = resolved;
   }
   // normalize images
   const imgs = normalizeImages(payload);
@@ -126,6 +169,20 @@ function sanitizePayload(raw, isUpdate = false) {
     if (payload[k] === "") payload[k] = null;
   });
   return payload;
+}
+
+async function resolveCategoryUuid(categoryId) {
+  if (!categoryId) return null;
+  if (String(categoryId).match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return categoryId;
+  const name = CATEGORY_ID_MAP[String(categoryId)] || String(categoryId);
+  if (!supabase) return categoryId;
+  try {
+    const { data } = await supabase.from("categories").select("id").ilike("name", name).maybeSingle();
+    if (data?.id) return data.id;
+  } catch {}
+  // fallback: try exact name in memory
+  const mem = db.categories.find((c) => c.name.toLowerCase() === name.toLowerCase());
+  return mem?.id || null;
 }
 
 async function supabaseAvailable() {
@@ -157,12 +214,19 @@ async function supabaseGetPlants({
     // supabase filtering: do simple filters in memory after fetch for stock parity, or use ilike
     if (search) query = query.ilike("name", `%${search}%`);
     if (category) {
-      // try to resolve category id from name
+      const mapped = CATEGORY_ID_MAP[String(category)] || String(category);
       const cat = categories.find(
         (c) =>
-          c.name.toLowerCase() === category.toLowerCase() || c.id === category,
+          c.name.toLowerCase() === mapped.toLowerCase() || c.id === String(category) || c.id === mapped,
       );
       if (cat) query = query.eq("category_id", cat.id);
+      else {
+        // try Supabase lookup for uuid categories not in local list
+        try {
+          const { data: sbCat } = await supabase.from("categories").select("id").ilike("name", mapped).maybeSingle();
+          if (sbCat?.id) query = query.eq("category_id", sbCat.id);
+        } catch {}
+      }
     }
     if (minPrice) query = query.gte("price", Number(minPrice));
     if (maxPrice) query = query.lte("price", Number(maxPrice));
@@ -238,11 +302,11 @@ router.get("/", async (req, res) => {
       limit,
       categories,
     });
-    // Keep the seeded development catalog visible until the remote catalog has products.
-    if (sb && (sb.total > 0 || db.plants.length === 0)) return res.json(sb);
+    // Keep seeded catalog unless remote has a full catalog (fix blank after reload when supabase has 0-1 rows)
+    if (sb && sb.total >= db.plants.length && sb.total > 0) return res.json(sb);
   }
-  // memory fallback
-  let result = [...db.plants];
+  // memory fallback — dedupe by id (fix reload duplicating products)
+  let result = [...new Map(db.plants.map(p=>[String(p.id),p])).values()];
   if (category)
     result = result.filter(
       (p) =>
@@ -361,6 +425,12 @@ router.post("/", auth, adminOnly, async (req, res) => {
   // ensure sku unique in memory (supabase will also enforce)
   if (data.sku && db.plants.find((p) => p.sku === data.sku))
     return res.status(400).json({ error: "SKU already exists" });
+  // resolve category_id to uuid for Supabase
+  if (data.category_id) {
+    const uuid = await resolveCategoryUuid(data.category_id);
+    if (uuid) data.category_id = uuid;
+    else delete data.category_id;
+  }
 
   if (await supabaseAvailable()) {
     try {
@@ -442,6 +512,11 @@ router.put("/:id", auth, adminOnly, async (req, res) => {
       (p) => p.sku === patch.sku && p.id !== req.params.id,
     );
     if (dup) return res.status(400).json({ error: "SKU already exists" });
+  }
+  if (patch.category_id) {
+    const uuid = await resolveCategoryUuid(patch.category_id);
+    if (uuid) patch.category_id = uuid;
+    else delete patch.category_id;
   }
 
   if (await supabaseAvailable()) {

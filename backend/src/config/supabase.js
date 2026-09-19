@@ -1,6 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Load backend/.env regardless of cwd (fixes `node backend/src/index.js` from repo root)
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config(); // also try cwd for overrides
 
 // Resolve env vars supporting both new (publishable/secret) and legacy (anon/service_role) naming
 // New keys from Supabase dashboard: https://supabase.com/dashboard/project/_/settings/api-keys

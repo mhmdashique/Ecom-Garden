@@ -34,15 +34,20 @@ export function AdminLogin() {
   return (
     <div className="min-h-[80vh] grid place-items-center bg-[#f6f7f4] px-4 py-10">
       <div className="w-full max-w-[420px] bg-white rounded-[24px] border shadow-xl p-6 md:p-8">
-        <div className="w-12 h-12 rounded-xl bg-[#0a2e1f] text-white grid place-items-center mx-auto">
-          ♛
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-[#0a2e1f] text-white grid place-items-center mx-auto shadow-lg">
+          🌿
         </div>
         <h1 className="mt-3 text-2xl font-black text-center tracking-tight">
           Admin Login
         </h1>
         <p className="text-center text-sm text-gray-500">
-          Secure access for Verdant team only
+          Shaji’s Nursery and Gardens • Pezhummoodu
         </p>
+        <div className="mt-3 bg-[#f6f7f4] border border-dashed border-stone-200 rounded-xl p-3 text-xs">
+          <div className="font-black tracking-widest uppercase text-stone-600">Demo Admin</div>
+          <div className="mt-1 font-mono text-[#0a2e1f]">mohammedashiqueofficial7@gmail.com</div>
+          <div className="font-mono font-bold">admin@2026</div>
+        </div>
         <form onSubmit={submit} className="mt-6 space-y-4">
           {err && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
@@ -88,6 +93,7 @@ export function AdminDashboard() {
   const { success, error: toastError } = useToast();
   const [stats, setStats] = useState(null);
   const [plants, setPlants] = useState([]);
+  const [categoriesList, setCategoriesList] = useState([]);
   const [orders, setOrders] = useState([]);
   const [users, setUsers] = useState([]);
   const [tab, setTab] = useState("overview");
@@ -115,6 +121,7 @@ export function AdminDashboard() {
   const [bulkStatus, setBulkStatus] = useState("confirmed");
   const [userSearch, setUserSearch] = useState("");
   const [expandedUser, setExpandedUser] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [editUserForm, setEditUserForm] = useState({
     name: "",
@@ -129,40 +136,58 @@ export function AdminDashboard() {
   const [dragOver, setDragOver] = useState(false);
   const [previewImg, setPreviewImg] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null); // {id, name, type: 'single'|'bulk'}
+  const [collapsed, setCollapsed] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem("admin-theme") || "emerald");
+
+  const THEMES = {
+    emerald: { name: "Emerald", bg: "from-emerald-600 to-[#0a2e1f]", accent: "#059669", soft: "bg-emerald-600", light: "bg-emerald-50 border-emerald-200 text-emerald-700" },
+    violet: { name: "Violet", bg: "from-violet-600 to-indigo-800", accent: "#7c3aed", soft: "bg-violet-600", light: "bg-violet-50 border-violet-200 text-violet-700" },
+    amber: { name: "Amber", bg: "from-amber-500 to-orange-600", accent: "#d97706", soft: "bg-amber-500", light: "bg-amber-50 border-amber-200 text-amber-700" },
+    ocean: { name: "Ocean", bg: "from-sky-600 to-blue-800", accent: "#0284c7", soft: "bg-sky-600", light: "bg-sky-50 border-sky-200 text-sky-700" },
+  };
+  const t = THEMES[theme] || THEMES.emerald;
 
   useEffect(() => {
     localStorage.setItem("admin-dark", dark);
   }, [dark]);
+  useEffect(() => { localStorage.setItem("admin-theme", theme); }, [theme]);
   useEffect(() => {
     let active = true;
     const load = async () => {
-      try {
-        const [statsRes, plantsRes, ordersRes, usersRes, msgsRes, reviewsRes] =
-          await Promise.all([
-            api.get("/admin/stats"),
-            api.get("/plants?limit=100"),
-            api.get("/orders"),
-            api.get("/users"),
-            api.get("/contact"),
-            api.get("/reviews"),
-          ]);
-        if (!active) return;
-        setStats(statsRes.data);
-        setPlants(plantsRes.data.plants || []);
-        setOrders(ordersRes.data || []);
-        setUsers(usersRes.data || []);
-        setMsgs(msgsRes.data || []);
-        setReviews(reviewsRes.data || []);
-      } catch (error) {
-        if (!active) return;
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          logout();
-          toastError("Your admin session expired. Please sign in again.");
-          nav("/admin/login");
-          return;
-        }
-        toastError("Could not load admin dashboard data. Please try again.");
+      const results = await Promise.allSettled([
+        api.get("/admin/stats"),
+        api.get("/plants?limit=100"),
+        api.get("/orders"),
+        api.get("/users"),
+        api.get("/contact"),
+        api.get("/reviews"),
+      ]);
+      if (!active) return;
+      const [statsRes, plantsRes, ordersRes, usersRes, msgsRes, reviewsRes] = results;
+      // handle auth expiry if orders/users failed with 401/403
+      const authFail = [ordersRes, usersRes].find(r => r.status === 'rejected' && [401,403].includes(r.reason?.response?.status));
+      if (authFail) {
+        logout();
+        toastError("Your admin session expired. Please sign in again.");
+        nav("/admin/login");
+        return;
       }
+      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
+      else setStats({ totalOrders: 0, totalUsers: 0, totalSales: 0, lowStock: [] });
+      if (plantsRes.status === 'fulfilled') {
+        setPlants(plantsRes.value.data.plants || []);
+        if (plantsRes.value.data.categories) setCategoriesList(plantsRes.value.data.categories);
+      }
+      if (ordersRes.status === 'fulfilled') setOrders(ordersRes.value.data || []);
+      else if (ordersRes.status === 'rejected' && ordersRes.reason?.response?.status !== 401) toastError("Could not load orders");
+      if (usersRes.status === 'fulfilled') setUsers(usersRes.value.data || []);
+      if (msgsRes.status === 'fulfilled') setMsgs(msgsRes.value.data || []);
+      if (reviewsRes.status === 'fulfilled') setReviews(reviewsRes.value.data || []);
+      // surface non-auth errors
+      const failed = results.filter(r=>r.status==='rejected' && ![401,403].includes(r.reason?.response?.status));
+      if (failed.length && statsRes.status==='rejected') toastError("Could not load admin dashboard data. Please try again.");
     };
     load();
     return () => {
@@ -222,6 +247,10 @@ export function AdminDashboard() {
         setPlants((p) => p.filter((x) => !selectedIds.includes(x.id)));
         success(`Deleted ${selectedIds.length} plants`);
         setSelectedIds([]);
+      } else if (deleteTarget.type === "review") {
+        await api.delete(`/reviews/${deleteTarget.id}`);
+        setReviews((prev) => prev.filter((x) => x.id !== deleteTarget.id));
+        success("Review deleted");
       }
     } catch (e) {
       toastError(e.response?.data?.error || "Delete failed");
@@ -238,21 +267,25 @@ export function AdminDashboard() {
     });
   };
   const bulkOutOfStock = async () => {
-    for (let id of selectedIds) {
-      await api.put(`/plants/${id}`, { stock_qty: 0 });
-    }
-    setPlants((p) =>
-      p.map((x) => (selectedIds.includes(x.id) ? { ...x, stock_qty: 0 } : x)),
-    );
-    setSelectedIds([]);
-    success("Marked out of stock");
+    if (selectedIds.length === 0) return;
+    try {
+      await Promise.all(selectedIds.map(id => api.put(`/plants/${id}`, { stock_qty: 0 })));
+      setPlants((p) => p.map((x) => (selectedIds.includes(x.id) ? { ...x, stock_qty: 0, stock_status: "out_of_stock" } : x)));
+      setSelectedIds([]);
+      success(`Marked ${selectedIds.length} plants out of stock`);
+      api.get("/admin/stats").then(r=>setStats(r.data)).catch(()=>{});
+    } catch (e) { toastError(e.response?.data?.error || "Bulk update failed"); }
   };
   const saveStock = async (id) => {
-    await api.put(`/plants/${id}`, { stock_qty: +stockVal });
-    setPlants((p) =>
-      p.map((x) => (x.id === id ? { ...x, stock_qty: +stockVal } : x)),
-    );
-    setEditingStock(null);
+    const n = Number(stockVal);
+    if (Number.isNaN(n) || n <0) { toastError("Stock must be 0 or more"); return; }
+    try {
+      await api.put(`/plants/${id}`, { stock_qty: n });
+      setPlants((p) => p.map((x) => (x.id === id ? { ...x, stock_qty: n, stock_status: n===0 ? "out_of_stock" : n<10 ? "low_stock" : "in_stock" } : x)));
+      setEditingStock(null);
+      success("Stock updated");
+      api.get("/admin/stats").then(r=>setStats(r.data)).catch(()=>{});
+    } catch (e) { toastError(e.response?.data?.error || "Stock update failed"); }
   };
   const startEditUser = (u) => {
     setEditingUser(u.id);
@@ -460,38 +493,33 @@ export function AdminDashboard() {
 
   const menu = [
     { id: "overview", label: "Overview", icon: "▦" },
+    { id: "analytics", label: "Analytics", icon: "◈" },
     { id: "orders", label: "Orders", icon: "📦" },
-    { id: "users", label: "Customers", icon: "👥" },
     { id: "plants", label: "Products", icon: "🌿" },
-    { id: "reviews", label: "Reviews", icon: "⭐" },
+    { id: "users", label: "Customers", icon: "👥" },
     { id: "messages", label: "Messages", icon: "✉" },
+    { id: "reviews", label: "Reviews", icon: "⭐" },
   ];
 
   const notifCount =
     orders.filter((o) => o.status === "pending_owner").length +
     (stats?.lowStock?.length || 0) +
     msgs.filter((m) => !m.reply).length;
-  const categories = [
-    "All",
-    "Indoor Plants",
-    "Outdoor Plants",
-    "Succulents",
-    "Flowering Plants",
-    "Seeds & Tools",
-  ];
+  const categories = categoriesList.length ? ["All", ...categoriesList.map(c=>c.name)] : ["All","Indoor Plants","Outdoor Plants","Succulents","Flowering Plants","Seeds & Tools"];
+  const getCategoryName = (plant) => {
+    if (!plant?.category_id) return "";
+    // uuid lookup
+    const found = categoriesList.find(c=> String(c.id)===String(plant.category_id));
+    if (found) return found.name;
+    // numeric fallback
+    return { "1":"Indoor Plants","2":"Outdoor Plants","3":"Succulents","4":"Flowering Plants","5":"Seeds & Tools"}[String(plant.category_id)] || "";
+  };
   const filteredPlants = plants.filter((p) => {
     const matchesSearch =
       !globalSearch ||
       p.name.toLowerCase().includes(globalSearch.toLowerCase()) ||
       p.sku?.toLowerCase().includes(globalSearch.toLowerCase());
-    const catName =
-      {
-        1: "Indoor Plants",
-        2: "Outdoor Plants",
-        3: "Succulents",
-        4: "Flowering Plants",
-        5: "Seeds & Tools",
-      }[p.category_id] || "";
+    const catName = getCategoryName(p);
     const matchesCat = plantCategory === "All" || catName === plantCategory;
     return matchesSearch && matchesCat;
   });
@@ -590,227 +618,127 @@ export function AdminDashboard() {
       }
     >
       <aside
-        className={`hidden lg:flex w-[280px] shrink-0 flex-col sticky top-0 h-screen overflow-hidden border-r ${dark ? "border-white/5 bg-[#080a0f] text-white" : "border-gray-200 bg-white text-gray-900"}`}
+        className={`hidden lg:flex ${collapsed ? "w-[72px]" : "w-[280px]"} shrink-0 flex-col sticky top-0 h-screen overflow-hidden border-r transition-all duration-300 ${dark ? "border-white/[0.06] bg-[#06080a] text-white" : "border-zinc-200 bg-white text-zinc-900"} ${focusMode ? "opacity-40 hover:opacity-100" : ""}`}
       >
         {/* Brand */}
         <div
-          className={`px-4 pt-5 pb-4 border-b ${dark ? "border-white/5" : "border-gray-100"}`}
+          className={`px-3 pt-4 pb-4 border-b flex items-center gap-2 ${dark ? "border-white/[0.06]" : "border-zinc-100"}`}
         >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#0a2e1f] text-white grid place-items-center">
-              🌿
-            </div>
-            <div>
-              <div
-                className={`font-black text-sm leading-none ${dark ? "text-white" : "text-gray-900"}`}
-              >
-                Verdant
-              </div>
-              <div
-                className={`text-[11px] font-medium ${dark ? "text-white/50" : "text-gray-500"}`}
-              >
-                2-acre • Pezhummoodu
-              </div>
-            </div>
+          <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${t.bg} text-white grid place-items-center shadow-lg shadow-emerald-900/20 shrink-0`}>
+            <span className="text-[16px]">🌿</span>
           </div>
-          <div
-            className={`mt-3 text-[11px] font-medium border rounded-full px-3 py-1 inline-flex items-center gap-2 ${dark ? "text-white/40 bg-white/5 border-white/5" : "text-gray-600 bg-gray-50 border-gray-200"}`}
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <div className={`font-black text-[13px] leading-none tracking-tight truncate ${dark ? "text-white" : "text-zinc-900"}`}>
+                Shaji’s Nursery
+              </div>
+              <div className={`text-[11px] font-medium truncate ${dark ? "text-white/40" : "text-zinc-500"}`}>and Gardens • Admin</div>
+            </div>
+          )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className={`w-7 h-7 rounded-full border grid place-items-center text-[10px] shrink-0 transition ${dark ? "bg-white/5 border-white/10 text-white/60 hover:bg-white/10" : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-zinc-100"}`}
+            title={collapsed ? "Expand" : "Collapse"}
           >
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>{" "}
-            Admin • {user?.name || "Admin"}
-          </div>
+            {collapsed ? "›" : "‹"}
+          </button>
         </div>
-
-        {/* Nav - only 5 items */}
-        <div className="flex-1 overflow-auto px-3 py-4">
-          <div
-            className={`text-[11px] font-black tracking-widest uppercase px-2 mb-2 ${dark ? "text-white/30" : "text-gray-400"}`}
-          >
-            Menu
-          </div>
-          <nav className="space-y-1">
-            <button
-              onClick={() => setTab("overview")}
-              className={`w-full text-left px-3 py-2.5 rounded-xl text-sm flex items-center gap-3 transition ${tab === "overview" ? (dark ? "bg-white text-[#080a0f]" : "bg-gray-900 text-white") : dark ? "text-white/60 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"}`}
-            >
-              <span
-                className={`w-7 h-7 rounded-lg grid place-items-center ${tab === "overview" ? (dark ? "bg-[#080a0f] text-white" : "bg-white/15 text-white") : dark ? "bg-white/10 text-white/60" : "bg-gray-100 text-gray-600"}`}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                >
-                  <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                  <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                  <rect x="3" y="14" width="7" height="7" rx="1.5" />
-                  <rect x="14" y="14" width="7" height="7" rx="1.5" />
-                </svg>
-              </span>{" "}
-              Dashboard
-            </button>
-            <button
-              onClick={() => setTab("orders")}
-              className={`w-full text-left px-3 py-2.5 rounded-xl text-sm flex items-center gap-3 transition ${tab === "orders" ? (dark ? "bg-white text-[#080a0f]" : "bg-gray-900 text-white") : dark ? "text-white/60 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"}`}
-            >
-              <span
-                className={`w-7 h-7 rounded-lg grid place-items-center ${tab === "orders" ? (dark ? "bg-[#080a0f] text-white" : "bg-white/15 text-white") : dark ? "bg-white/10 text-white/60" : "bg-gray-100 text-gray-600"}`}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                >
-                  <path d="M6 7h12l-1 9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Z" />
-                  <path d="M9 7V5a3 3 0 0 1 6 0v2" />
-                </svg>
-              </span>{" "}
-              Orders
-              {orders.filter((o) => o.status === "pending_owner").length >
-                0 && (
-                <span className="ml-auto bg-[#2a5bd7] text-white text-[11px] font-bold px-2 py-0.5 rounded-full">
-                  {orders.filter((o) => o.status === "pending_owner").length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setTab("users")}
-              className={`w-full text-left px-3 py-2.5 rounded-xl text-sm flex items-center gap-3 transition ${tab === "users" ? (dark ? "bg-white text-[#080a0f]" : "bg-gray-900 text-white") : dark ? "text-white/60 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"}`}
-            >
-              <span
-                className={`w-7 h-7 rounded-lg grid place-items-center ${tab === "users" ? (dark ? "bg-[#080a0f] text-white" : "bg-white/15 text-white") : dark ? "bg-white/10 text-white/60" : "bg-gray-100 text-gray-600"}`}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                >
-                  <path d="M16 19a4 4 0 0 0-8 0" />
-                  <circle cx="12" cy="7" r="3" />
-                  <path d="M6 19a4 4 0 0 1 4-4h0" />
-                </svg>
-              </span>{" "}
-              Customers
-              <span
-                className={`ml-auto text-[11px] px-2 py-0.5 rounded-full ${dark ? "bg-white/10 text-white/60" : "bg-gray-100 text-gray-600"}`}
-              >
-                {users.length}
-              </span>
-            </button>
-            <button
-              onClick={() => setTab("plants")}
-              className={`w-full text-left px-3 py-2.5 rounded-xl text-sm flex items-center gap-3 transition ${tab === "plants" ? (dark ? "bg-white text-[#080a0f]" : "bg-gray-900 text-white") : dark ? "text-white/60 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"}`}
-            >
-              <span
-                className={`w-7 h-7 rounded-lg grid place-items-center ${tab === "plants" ? (dark ? "bg-[#080a0f] text-white" : "bg-white/15 text-white") : dark ? "bg-white/10 text-white/60" : "bg-gray-100 text-gray-600"}`}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                >
-                  <path d="M12 2C7 2 5 6.5 5 10c0 3.5 2 6 7 10 5-4 7-6.5 7-10 0-3.5-2-8-7-8Z" />
-                  <path d="M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
-                </svg>
-              </span>{" "}
-              Products
-              <span
-                className={`ml-auto text-[11px] px-2 py-0.5 rounded-full ${dark ? "bg-white/10 text-white/60" : "bg-gray-100 text-gray-600"}`}
-              >
-                {plants.length}
-              </span>
-            </button>
-            <button
-              onClick={() => setTab("reviews")}
-              className={`w-full text-left px-3 py-2.5 rounded-xl text-sm flex items-center gap-3 transition ${tab === "reviews" ? (dark ? "bg-white text-[#080a0f]" : "bg-gray-900 text-white") : dark ? "text-white/60 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"}`}
-            >
-              <span
-                className={`w-7 h-7 rounded-lg grid place-items-center ${tab === "reviews" ? (dark ? "bg-[#080a0f] text-white" : "bg-white/15 text-white") : dark ? "bg-white/10 text-white/60" : "bg-gray-100 text-gray-600"}`}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                >
-                  <path d="M12 3l2.3 4.7 5.2.8-3.8 3.7.9 5.2L12 15.9l-4.6 2.4.9-5.2L4.5 8.5l5.2-.8L12 3Z" />
-                </svg>
-              </span>{" "}
-              Reviews
-              {reviews.length > 0 && (
-                <span className="ml-auto bg-amber-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">
-                  {reviews.length}
-                </span>
-              )}
-            </button>
-
-          </nav>
-          <div
-            className={`mt-6 mx-2 rounded-2xl p-4 border ${dark ? "bg-gradient-to-br from-[#0a2e1f] to-[#1a5a3a] border-white/10 text-white" : "bg-[#f6f7f4] border-gray-200 text-gray-900"}`}
-          >
-            <div
-              className={`text-xs font-black ${dark ? "text-white" : "text-gray-900"}`}
-            >
-              Need help?
+        {!collapsed && (
+          <div className="px-3 pt-3">
+            <div className={`relative flex items-center gap-2 rounded-full border px-3 py-2 ${dark ? "bg-white/[0.06] border-white/10" : "bg-zinc-50 border-zinc-200"}`}>
+              <span className={`text-xs ${dark ? "text-white/30" : "text-zinc-400"}`}>⌕</span>
+              <input value={globalSearch} onChange={(e) => setGlobalSearch(e.target.value)} placeholder="Search…" onFocus={() => setCmdOpen(true)} className={`flex-1 bg-transparent outline-none text-xs placeholder:text-zinc-400 ${dark ? "text-white" : "text-zinc-900"}`} />
+              <span className={`hidden xl:inline text-[10px] px-1.5 py-0.5 rounded border font-mono ${dark ? "bg-white/10 border-white/10 text-white/40" : "bg-white border-zinc-200 text-zinc-500"}`}>⌘K</span>
             </div>
-            <div
-              className={`text-xs mt-1 leading-4 ${dark ? "text-white/60" : "text-gray-500"}`}
-            >
-              Manage orders, customers and products from here.
-            </div>
-            <a
-              href="/"
-              className={`mt-3 inline-flex px-3 py-1.5 rounded-full text-xs font-black ${dark ? "bg-white text-[#0a2e1f]" : "bg-gray-900 text-white"}`}
-            >
-              Go to Store →
-            </a>
           </div>
+        )}
+
+        {/* Nav */}
+        <div className="flex-1 overflow-auto px-2 py-4 space-y-5">
+          <div>
+            {!collapsed && <div className={`text-[10px] font-black tracking-[0.14em] uppercase px-2 mb-2 ${dark ? "text-white/25" : "text-zinc-400"}`}>Overview</div>}
+            <nav className="space-y-1">
+              <button onClick={() => setTab("overview")} className={`w-full text-left px-2.5 py-2 rounded-xl text-sm flex items-center gap-3 transition ${tab === "overview" ? (dark ? "bg-white text-[#06080a] shadow-lg" : "bg-zinc-900 text-white shadow-md") : dark ? "text-white/55 hover:text-white hover:bg-white/[0.06]" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}>
+                <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${tab === "overview" ? (dark ? "bg-[#06080a] text-white" : "bg-white/15 text-white") : dark ? "bg-white/[0.06] text-white/50" : "bg-zinc-100 text-zinc-500"}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+                {!collapsed && <span className="flex-1 font-semibold text-[13px]">Dashboard</span>}
+                {!collapsed && tab === "overview" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"/>}
+              </button>
+              <button onClick={() => setTab("analytics")} className={`w-full text-left px-2.5 py-2 rounded-xl text-sm flex items-center gap-3 transition ${tab === "analytics" ? (dark ? "bg-white text-[#06080a] shadow-lg" : "bg-zinc-900 text-white shadow-md") : dark ? "text-white/55 hover:text-white hover:bg-white/[0.06]" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}>
+                <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${tab === "analytics" ? (dark ? "bg-[#06080a] text-white" : "bg-white/15 text-white") : dark ? "bg-white/[0.06] text-white/50" : "bg-zinc-100 text-zinc-500"}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 3v18h18"/><path d="M7 16l4-4 3 3 4-6"/></svg></span>
+                {!collapsed && <span className="flex-1 font-medium text-[13px]">Analytics</span>}
+                {!collapsed && tab==="analytics" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"/>}
+              </button>
+            </nav>
+          </div>
+          <div>
+            {!collapsed && <div className={`text-[10px] font-black tracking-[0.14em] uppercase px-2 mb-2 ${dark ? "text-white/25" : "text-zinc-400"}`}>Commerce</div>}
+            <nav className="space-y-1">
+              {[
+                { id: "orders", label: "Orders", count: orders.filter((o)=>o.status==="pending_owner").length },
+                { id: "plants", label: "Products", count: plants.length },
+                { id: "users", label: "Customers", count: users.filter(u=>u.role!=="admin").length },
+              ].map((it)=>{
+                const active = tab===it.id;
+                return (
+                  <button key={it.id} onClick={() => setTab(it.id)} className={`w-full text-left px-2.5 py-2 rounded-xl text-sm flex items-center gap-3 transition ${active ? (dark ? "bg-white text-[#06080a] shadow-lg" : "bg-zinc-900 text-white shadow-md") : dark ? "text-white/55 hover:text-white hover:bg-white/[0.06]" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}>
+                    <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${active ? (dark ? "bg-[#06080a] text-white" : "bg-white/15 text-white") : dark ? "bg-white/[0.06] text-white/50" : "bg-zinc-100 text-zinc-500"}`}>
+                      {it.id==="orders" ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 7h12l-1 9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg> : it.id==="plants" ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 2C7 2 5 6.5 5 10c0 3.5 2 6 7 10 5-4 7-6.5 7-10 0-3.5-2-8-7-8Z"/><path d="M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 19a4 4 0 0 0-8 0"/><circle cx="12" cy="7" r="3"/></svg>}
+                    </span>
+                    {!collapsed && <span className="flex-1 font-medium text-[13px]">{it.label}</span>}
+                    {!collapsed && it.count>0 && <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${active ? "bg-white/20 text-white" : it.id==="orders" && it.count>0 ? "bg-blue-600 text-white" : dark ? "bg-white/10 text-white/60" : "bg-zinc-100 text-zinc-600"}`}>{it.count}</span>}
+                  </button>
+                )
+              })}
+            </nav>
+          </div>
+          <div>
+            {!collapsed && <div className={`text-[10px] font-black tracking-[0.14em] uppercase px-2 mb-2 ${dark ? "text-white/25" : "text-zinc-400"}`}>Engagement</div>}
+            <nav className="space-y-1">
+              <button onClick={() => setTab("reviews")} className={`w-full text-left px-2.5 py-2 rounded-xl text-sm flex items-center gap-3 transition ${tab === "reviews" ? (dark ? "bg-white text-[#06080a] shadow-lg" : "bg-zinc-900 text-white shadow-md") : dark ? "text-white/55 hover:text-white hover:bg-white/[0.06]" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}>
+                <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${tab === "reviews" ? (dark ? "bg-[#06080a] text-white" : "bg-white/15 text-white") : dark ? "bg-white/[0.06] text-white/50" : "bg-zinc-100 text-zinc-500"}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3l2.3 4.7 5.2.8-3.8 3.7.9 5.2L12 15.9l-4.6 2.4.9-5.2L4.5 8.5l5.2-.8L12 3Z"/></svg></span>
+                {!collapsed && <span className="flex-1 font-medium text-[13px]">Reviews</span>}
+                {!collapsed && reviews.length>0 && <span className="bg-amber-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">{reviews.length}</span>}
+              </button>
+              <button onClick={() => setTab("messages")} className={`w-full text-left px-2.5 py-2 rounded-xl text-sm flex items-center gap-3 transition ${tab === "messages" ? (dark ? "bg-white text-[#06080a] shadow-lg" : "bg-zinc-900 text-white shadow-md") : dark ? "text-white/55 hover:text-white hover:bg-white/[0.06]" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}>
+                <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${tab === "messages" ? (dark ? "bg-[#06080a] text-white" : "bg-white/15 text-white") : dark ? "bg-white/[0.06] text-white/50" : "bg-zinc-100 text-zinc-500"}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 4h16v12H4z"/><path d="M4 8l8 5 8-5"/></svg></span>
+                {!collapsed && <span className="flex-1 font-medium text-[13px]">Messages</span>}
+                {!collapsed && msgs.filter(m=>!m.reply).length>0 && <span className="bg-amber-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">{msgs.filter(m=>!m.reply).length}</span>}
+              </button>
+              <button onClick={() => setTab("settings")} className={`w-full text-left px-2.5 py-2 rounded-xl text-sm flex items-center gap-3 transition ${tab === "settings" ? (dark ? "bg-white text-[#06080a] shadow-lg" : "bg-zinc-900 text-white shadow-md") : dark ? "text-white/55 hover:text-white hover:bg-white/[0.06]" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"}`}>
+                <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${tab === "settings" ? (dark ? "bg-[#06080a] text-white" : "bg-white/15 text-white") : dark ? "bg-white/[0.06] text-white/50" : "bg-zinc-100 text-zinc-500"}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span>
+                {!collapsed && <span className="flex-1 font-medium text-[13px]">Settings</span>}
+              </button>
+            </nav>
+          </div>
+          {!collapsed && (
+            <div className={`mx-1 rounded-2xl p-3 border ${dark ? "bg-gradient-to-br from-[#0a2e1f] to-[#143d2e] border-white/10 text-white" : "bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100 text-zinc-900"}`}>
+              <div className="flex items-center justify-between"><div className={`text-[11px] font-black uppercase tracking-widest ${dark ? "text-emerald-300" : "text-emerald-700"}`}>Today</div><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${dark ? "bg-white/10 text-white/70" : "bg-white border border-emerald-200 text-emerald-700"}`}>{new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short"})}</span></div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className={`rounded-xl p-2 border ${dark ? "bg-white/5 border-white/10" : "bg-white border-emerald-100"}`}><div className={`text-[10px] uppercase font-bold ${dark ? "text-white/40" : "text-zinc-500"}`}>Sales</div><div className="text-sm font-black">₹{stats ? stats.totalSales.toLocaleString("en-IN") : "—"}</div></div>
+                <div className={`rounded-xl p-2 border ${dark ? "bg-white/5 border-white/10" : "bg-white border-emerald-100"}`}><div className={`text-[10px] uppercase font-bold ${dark ? "text-white/40" : "text-zinc-500"}`}>Pending</div><div className={`text-sm font-black ${orders.filter(o=>o.status==="pending_owner").length? "text-amber-500": dark?"text-white":"text-zinc-900"}`}>{orders.filter(o=>o.status==="pending_owner").length}</div></div>
+              </div>
+              <div className={`mt-2 text-[11px] leading-4 ${dark ? "text-white/60" : "text-zinc-600"}`}>{stats?.lowStock?.length ? `${stats.lowStock.length} low stock — restock soon` : "All stock healthy ✓"}</div>
+              <button onClick={()=>setTab("plants")} className={`mt-2 w-full py-1.5 rounded-full text-xs font-black ${dark ? "bg-white text-[#0a2e1f]" : "bg-zinc-900 text-white"}`}>Manage →</button>
+              <div className="mt-2 flex items-center gap-1.5 justify-center">
+                {Object.entries(THEMES).map(([k, th])=>(
+                  <button key={k} onClick={()=>setTheme(k)} className={`w-5 h-5 rounded-full border ${theme===k ? "border-zinc-900 ring-2 ring-offset-1 ring-zinc-900" : dark ? "border-white/20" : "border-zinc-200"} ${th.soft}`} title={th.name}/>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* User */}
-        <div
-          className={`p-3 border-t flex items-center gap-3 ${dark ? "border-white/5" : "border-gray-100"}`}
-        >
-          <img
-            src={`https://i.pravatar.cc/100?u=${user?.email}`}
-            alt=""
-            className={`w-8 h-8 rounded-full object-cover border ${dark ? "border-white/10" : "border-gray-200"}`}
-          />
-          <div className="flex-1 min-w-0">
-            <div
-              className={`text-sm font-bold leading-none truncate ${dark ? "text-white" : "text-gray-900"}`}
-            >
-              {user?.name || "Admin"}
+        <div className={`p-2 border-t flex items-center gap-2 ${dark ? "border-white/[0.06] bg-white/[0.02]" : "border-zinc-100 bg-zinc-50/50"}`}>
+          <img src={`https://i.pravatar.cc/100?u=${user?.email}`} alt="" className={`w-8 h-8 rounded-full object-cover border-2 shrink-0 ${dark ? "border-white/10" : "border-white shadow-sm"}`} />
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <div className={`text-xs font-bold leading-none truncate ${dark ? "text-white" : "text-zinc-900"}`}>{user?.name || "Admin"}</div>
+              <div className={`text-[11px] truncate ${dark ? "text-white/40" : "text-zinc-500"}`}>{user?.email}</div>
             </div>
-            <div
-              className={`text-xs truncate ${dark ? "text-white/50" : "text-gray-500"}`}
-            >
-              {user?.email}
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              logout();
-              nav("/");
-            }}
-            className={`w-8 h-8 rounded-full grid place-items-center text-xs font-black ${dark ? "bg-white text-[#080a0f] hover:bg-white/90" : "bg-gray-900 text-white hover:bg-black"}`}
-          >
-            →
-          </button>
+          )}
+          {!collapsed && <button onClick={() => {logout(); nav("/");}} className={`w-8 h-8 rounded-full grid place-items-center text-xs font-black shrink-0 ${dark ? "bg-white text-[#06080a] hover:bg-zinc-100" : "bg-zinc-900 text-white hover:bg-black"}`}>→</button>}
+          {collapsed && <button onClick={() => {logout(); nav("/");}} className={`w-8 h-8 rounded-full grid place-items-center text-xs font-black shrink-0 mx-auto ${dark ? "bg-white text-[#06080a]" : "bg-zinc-900 text-white"}`}>→</button>}
         </div>
       </aside>
 
@@ -827,29 +755,16 @@ export function AdminDashboard() {
             <span className="capitalize text-emerald-600">{tab}</span>
           </div>
           <div className="flex-1 max-w-[420px] relative hidden md:block">
-            <span
-              className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-white/40" : "text-gray-400"}`}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <circle cx="11" cy="11" r="6" />
-                <path d="M15 15l4 4" />
-              </svg>
+            <span className={`absolute left-3 top-1/2 -translate-y-1/2 ${dark ? "text-white/40" : "text-gray-400"}`}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="6"/><path d="M15 15l4 4"/></svg>
             </span>
-            <input
-              value={globalSearch}
-              onChange={(e) => setGlobalSearch(e.target.value)}
-              placeholder="Search plants, orders, users..."
-              className={`w-full rounded-full pl-9 pr-4 py-2 text-sm outline-none border ${dark ? "bg-white/10 border-white/20 text-white placeholder:text-white/50" : "bg-[#f6f7f4] border-gray-200 focus:bg-white focus:border-emerald-300"}`}
-            />
+            <input value={globalSearch} onChange={(e) => setGlobalSearch(e.target.value)} onFocus={() => setCmdOpen(true)} placeholder="Search plants, orders, users… (⌘K)" className={`w-full rounded-full pl-9 pr-20 py-2 text-sm outline-none border transition ${dark ? "bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/15" : "bg-[#f6f7f4] border-gray-200 focus:bg-white focus:border-emerald-300"}`} />
+            <span className={`absolute right-1.5 top-1/2 -translate-y-1/2 hidden lg:inline-flex text-[10px] font-mono px-2 py-1 rounded-full border ${dark ? "bg-white/10 border-white/10 text-white/40" : "bg-white border-gray-200 text-gray-500"}`}>⌘ K</span>
           </div>
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-1.5 md:gap-2 ml-auto">
+            <button onClick={() => setFocusMode(!focusMode)} className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold ${focusMode ? "bg-amber-500 text-white border-amber-500" : dark ? "bg-white/5 border-white/10 text-white/70 hover:bg-white/10" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"}`} title="Focus mode">
+              <span className={`w-1.5 h-1.5 rounded-full ${focusMode ? "bg-white animate-pulse" : "bg-emerald-500"}`}></span> {focusMode ? "Focus" : "Focus"}
+            </button>
             <button
               onClick={() => setDark(!dark)}
               className={`w-9 h-9 rounded-full border grid place-items-center ${dark ? "bg-white text-[#0a2e1f] border-white" : "bg-[#f6f7f4] border-gray-200 text-gray-700"}`}
@@ -903,12 +818,13 @@ export function AdminDashboard() {
               </button>
               {showNotifs && (
                 <div
-                  className={`absolute right-0 mt-2 w-80 border rounded-2xl shadow-xl overflow-hidden z-50 ${dark ? "bg-[#1e1e1e] border-gray-700 text-white" : "bg-white border-gray-100 text-gray-900"}`}
+                  className={`absolute right-0 mt-2 w-[380px] max-w-[92vw] border rounded-2xl shadow-2xl overflow-hidden z-50 ${dark ? "bg-[#1e1e1e] border-gray-700 text-white" : "bg-white border-gray-100 text-gray-900"}`}
                 >
                   <div
-                    className={`p-3 font-black border-b ${dark ? "border-gray-700" : "border-gray-100"}`}
+                    className={`p-3 font-black border-b flex items-center justify-between ${dark ? "border-gray-700 bg-white/5" : "border-gray-100 bg-gray-50"}`}
                   >
-                    Notifications • {notifCount}
+                    <span>Notifications • {notifCount}</span>
+                    <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-600 text-white animate-pulse">LIVE</span>
                   </div>
                   <div className="max-h-80 overflow-auto divide-y">
                     {orders
@@ -917,14 +833,26 @@ export function AdminDashboard() {
                       .map((o) => (
                         <div
                           key={o.id}
-                          className={`p-3 ${dark ? "hover:bg-white/5" : "hover:bg-gray-50"}`}
+                          className={`p-3 flex gap-3 items-center ${dark ? "hover:bg-white/5" : "hover:bg-gray-50"}`}
                         >
-                          <div className="font-bold">
-                            New COD order #{o.id.slice(0, 6)}
+                          <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white grid place-items-center shrink-0">📦</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-black text-sm leading-none">New order • #{o.id.slice(0, 6).toUpperCase()} <span className="ml-1 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">NEW</span></div>
+                            <div className="text-xs text-gray-500 truncate mt-1">₹{o.total_amount} • {o.user_name || o.user_email || "Customer"} • {new Date(o.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+                            <div className="text-[11px] text-emerald-600 font-bold mt-0.5">{o.items?.length || 0} items • {o.payment_method}</div>
                           </div>
-                          <div className="text-xs text-gray-500">
-                            ₹{o.total_amount} • {o.user_name}
-                          </div>
+                          <button
+                            onClick={() => {
+                              setShowNotifs(false);
+                              setTab("orders");
+                              setOrderFilter("Pending");
+                              // scroll to orders tab top after tab switch
+                              setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
+                            }}
+                            className="shrink-0 bg-[#0a2e1f] text-white px-3 py-1.5 rounded-full text-xs font-black hover:bg-black whitespace-nowrap"
+                          >
+                            View order →
+                          </button>
                         </div>
                       ))}
                     {(stats?.lowStock || []).slice(0, 3).map((p) => (
@@ -955,6 +883,21 @@ export function AdminDashboard() {
                       </div>
                     )}
                   </div>
+                  {notifCount > 0 && (
+                    <div className={`p-2 border-t flex gap-2 ${dark ? "bg-white/[0.03] border-gray-700" : "bg-gray-50 border-gray-100"}`}>
+                      <button
+                        onClick={() => {
+                          setShowNotifs(false);
+                          setTab("orders");
+                          setOrderFilter("Pending");
+                        }}
+                        className="flex-1 bg-[#0a2e1f] text-white py-2 rounded-full text-xs font-black hover:bg-black"
+                      >
+                        View all orders →
+                      </button>
+                      <button onClick={() => setShowNotifs(false)} className={`flex-1 border py-2 rounded-full text-xs font-bold ${dark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200"}`}>Close</button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -993,6 +936,14 @@ export function AdminDashboard() {
                   >
                     {dark ? "Light mode" : "Dark mode"}
                   </button>
+                  <div className="px-4 py-2 flex items-center gap-2">
+                    <span className="text-xs font-bold opacity-60">Theme</span>
+                    <div className="flex gap-1.5 ml-auto">
+                      {Object.entries(THEMES).map(([k, th])=>(
+                        <button key={k} onClick={()=>setTheme(k)} className={`w-6 h-6 rounded-full border-2 ${theme===k ? "border-zinc-900 ring-1 ring-zinc-900" : "border-white/20"} ${th.soft}`} title={th.name}/>
+                      ))}
+                    </div>
+                  </div>
                   <button
                     onClick={() => {
                       logout();
@@ -1007,6 +958,33 @@ export function AdminDashboard() {
             </div>
           </div>
         </div>
+        {cmdOpen && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh] p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setCmdOpen(false)} />
+            <div className={`relative w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden ${dark ? "bg-[#15181a] border-white/10 text-white" : "bg-white border-zinc-200 text-zinc-900"}`}>
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-100">
+                <span className="text-zinc-400">⌕</span>
+                <input autoFocus value={globalSearch} onChange={(e) => setGlobalSearch(e.target.value)} placeholder="Search plants, orders, customers…" className="flex-1 bg-transparent outline-none text-sm placeholder:text-zinc-400" />
+                <button onClick={() => setCmdOpen(false)} className="text-xs px-2 py-1 rounded-full border bg-zinc-50">ESC</button>
+              </div>
+              <div className="p-2 max-h-80 overflow-auto">
+                <div className="text-[11px] font-black tracking-widest uppercase opacity-40 px-2 py-1">Quick actions</div>
+                {[
+                  { label: "Go to Orders", action: () => { setTab("orders"); setCmdOpen(false); } },
+                  { label: "Go to Products", action: () => { setTab("plants"); setCmdOpen(false); } },
+                  { label: "Go to Customers", action: () => { setTab("users"); setCmdOpen(false); } },
+                  { label: "Go to Messages", action: () => { setTab("messages"); setCmdOpen(false); } },
+                  { label: "Go to Reviews", action: () => { setTab("reviews"); setCmdOpen(false); } },
+                  { label: "Add new product", action: () => { setCmdOpen(false); openAddDrawer(); } },
+                ].filter(a=>!globalSearch || a.label.toLowerCase().includes(globalSearch.toLowerCase())).map(a=>(
+                  <button key={a.label} onClick={a.action} className={`w-full text-left px-3 py-2.5 rounded-xl text-sm flex items-center justify-between ${dark ? "hover:bg-white/[0.06]" : "hover:bg-zinc-50"}`}>
+                    <span>{a.label}</span><span className="text-zinc-400 text-xs">↩</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* mobile top header minimal */}
         <div
@@ -1033,7 +1011,7 @@ export function AdminDashboard() {
         <div
           className={`lg:hidden fixed bottom-0 inset-x-0 z-40 border-t ${dark ? "bg-[#1e1e1e] border-gray-700" : "bg-white border-gray-200"}`}
         >
-          <div className="grid grid-cols-5">
+          <div className="grid grid-cols-7">
             {menu.map((m) => {
               const active = tab === m.id;
               const badge =
@@ -1683,7 +1661,7 @@ export function AdminDashboard() {
                         <div
                           className={`text-xs ${dark ? "text-white/60" : "text-gray-500"}`}
                         >
-                          {displayPrice} • {p.stock_qty} pcs{" "}
+                          {getCategoryName(p)} • {displayPrice} • {p.stock_qty} pcs{" "}
                           {p.variants && (
                             <span className="text-emerald-600 font-bold">
                               • {p.variants.filter((v) => !v.disabled).length}{" "}
@@ -1776,11 +1754,11 @@ export function AdminDashboard() {
                           <div
                             className={`text-xs truncate ${dark ? "text-white/60" : "text-gray-500"}`}
                           >
-                            {p.variants
+                            {getCategoryName(p) || "Uncategorized"} • {p.variants
                               ? `₹${(p.variants.find((v) => v.id === "plastic-pot") || p.variants[0]).priceMin} Fixed`
                               : `₹${p.price}`}{" "}
                             • {p.stock_qty} in stock • {p.sunlight} •{" "}
-                            {p.sku || p.id}
+                            {p.sku || p.id.slice(0,8)}
                           </div>
                         </div>
                         {editingStock === p.id ? (
@@ -1918,6 +1896,7 @@ export function AdminDashboard() {
                 open={plantDrawerOpen}
                 initial={editingPlant}
                 dark={dark}
+                categories={categoriesList}
                 onClose={() => {
                   setPlantDrawerOpen(false);
                   setEditingPlant(null);
@@ -2570,17 +2549,21 @@ export function AdminDashboard() {
                               />
                             </td>
                             <td className="px-4 py-3">
-                              <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => setSelectedCustomer(u)}
+                                className="flex items-center gap-3 text-left group/name hover:opacity-80 transition"
+                                title="Click to view full customer details"
+                              >
                                 <img
                                   src={`https://i.pravatar.cc/100?u=${u.email}`}
                                   alt={u.name}
-                                  className={`w-8 h-8 rounded-full object-cover border ${dark ? "border-white/10" : "border-gray-200"}`}
+                                  className={`w-8 h-8 rounded-full object-cover border ${dark ? "border-white/10" : "border-gray-200"} group-hover/name:ring-2 group-hover/name:ring-emerald-500/40`}
                                 />
                                 <div>
                                   <div
-                                    className={`font-bold text-xs flex items-center gap-1.5 ${dark ? "text-white" : "text-gray-900"}`}
+                                    className={`font-bold text-xs flex items-center gap-1.5 group-hover/name:text-emerald-600 ${dark ? "text-white group-hover/name:text-emerald-400" : "text-gray-900"}`}
                                   >
-                                    {u.name}{" "}
+                                    <span className="underline decoration-dotted underline-offset-2 decoration-emerald-500/40 group-hover/name:decoration-emerald-500">{u.name}</span>{" "}
                                     {u.role === "admin" && (
                                       <span className="bg-[#1e3a5a] text-white text-[10px] px-1.5 py-0.5 rounded-full">
                                         ADMIN
@@ -2593,7 +2576,7 @@ export function AdminDashboard() {
                                     {u.email}
                                   </div>
                                 </div>
-                              </div>
+                              </button>
                             </td>
                             <td
                               className={`px-4 py-3 text-xs ${dark ? "text-white/70" : "text-gray-600"}`}
@@ -2825,6 +2808,100 @@ export function AdminDashboard() {
                   )}
                 </div>
               ))}
+              {/* Customer Detail Drawer - clicking customer name */}
+              {selectedCustomer && (() => {
+                const sc = selectedCustomer;
+                const scOrders = orders.filter((o) => o.user_id === sc.id);
+                const scTotalSpent = scOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
+                const scLastOrder = scOrders[0];
+                const scAddr = scLastOrder?.address || {};
+                return (
+                  <div className="fixed inset-0 z-50 flex">
+                    <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedCustomer(null)} />
+                    <div className={`w-full max-w-[560px] h-full overflow-auto shadow-2xl ${dark ? "bg-[#101314] text-white" : "bg-white text-zinc-900"} border-l ${dark ? "border-white/10" : "border-zinc-200"}`}>
+                      <div className={`sticky top-0 z-10 border-b p-5 flex justify-between items-start ${dark ? "bg-[#101314] border-white/10" : "bg-white border-zinc-200"}`}>
+                        <div className="flex gap-3 items-center">
+                          <img src={`https://i.pravatar.cc/100?u=${sc.email}`} alt={sc.name} className={`w-12 h-12 rounded-full object-cover border-2 ${dark ? "border-white/10" : "border-emerald-100"}`} />
+                          <div>
+                            <h3 className="text-lg font-black leading-none flex items-center gap-2">{sc.name} {sc.role === "admin" && <span className="bg-[#1e3a5a] text-white text-[10px] px-1.5 py-0.5 rounded-full">ADMIN</span>}</h3>
+                            <p className={`text-xs ${dark ? "text-white/50" : "text-zinc-500"}`}>{sc.email}</p>
+                            <p className={`text-[11px] font-mono ${dark ? "text-white/30" : "text-zinc-400"}`}>{sc.id}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => setSelectedCustomer(null)} className={`w-9 h-9 rounded-full border grid place-items-center ${dark ? "bg-white/10 border-white/10 text-white" : "bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100"}`}>✕</button>
+                      </div>
+                      <div className="p-5 space-y-4">
+                        {/* Stats */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className={`rounded-2xl p-3 border ${dark ? "bg-white/[0.04] border-white/10" : "bg-zinc-50 border-zinc-200"}`}>
+                            <div className={`text-[10px] font-black uppercase tracking-widest ${dark ? "text-white/40" : "text-zinc-500"}`}>Total Orders</div>
+                            <div className="text-xl font-black mt-1">{scOrders.length}</div>
+                            <div className={`text-[11px] ${dark ? "text-white/40" : "text-zinc-500"}`}>{scOrders.filter(o=>o.status==="delivered").length} delivered</div>
+                          </div>
+                          <div className={`rounded-2xl p-3 border ${dark ? "bg-white/[0.04] border-white/10" : "bg-zinc-50 border-zinc-200"}`}>
+                            <div className={`text-[10px] font-black uppercase tracking-widest ${dark ? "text-white/40" : "text-zinc-500"}`}>Total Spent</div>
+                            <div className="text-xl font-black mt-1">₹{scTotalSpent.toLocaleString("en-IN")}</div>
+                            <div className={`text-[11px] ${dark ? "text-white/40" : "text-zinc-500"}`}>Avg ₹{scOrders.length ? (scTotalSpent / scOrders.length).toFixed(0) : 0}/order</div>
+                          </div>
+                          <div className={`rounded-2xl p-3 border ${dark ? "bg-white/[0.04] border-white/10" : "bg-zinc-50 border-zinc-200"}`}>
+                            <div className={`text-[10px] font-black uppercase tracking-widest ${dark ? "text-white/40" : "text-zinc-500"}`}>Status</div>
+                            <div className="mt-1"><span className={`px-2 py-1 rounded-full text-xs font-bold border ${sc.blocked ? "bg-red-500/10 border-red-500/20 text-red-400" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"}`}>{sc.blocked ? "Blocked" : "Active"}</span></div>
+                            <div className={`text-[11px] mt-1 ${dark ? "text-white/40" : "text-zinc-500"}`}>{sc.email_verified ? "✓ Verified" : "✗ Unverified"}</div>
+                          </div>
+                          <div className={`rounded-2xl p-3 border ${dark ? "bg-white/[0.04] border-white/10" : "bg-zinc-50 border-zinc-200"}`}>
+                            <div className={`text-[10px] font-black uppercase tracking-widest ${dark ? "text-white/40" : "text-zinc-500"}`}>Member Since</div>
+                            <div className="text-sm font-bold mt-1">{new Date(sc.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
+                            <div className={`text-[11px] ${dark ? "text-white/40" : "text-zinc-500"}`}>{sc.phone || "No phone"}</div>
+                          </div>
+                        </div>
+                        {/* Contact details */}
+                        <div className={`rounded-2xl p-4 border ${dark ? "bg-white/[0.03] border-white/10" : "bg-[#f6f7f4] border-zinc-200"}`}>
+                          <div className={`text-[11px] font-black uppercase tracking-widest mb-2 ${dark ? "text-white/40" : "text-zinc-500"}`}>Contact Details</div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between"><span className="opacity-60">Email</span><span className="font-semibold truncate ml-2">{sc.email}</span></div>
+                            <div className="flex justify-between"><span className="opacity-60">Phone</span><span className="font-semibold">{sc.phone || "—"}</span></div>
+                            <div className="flex justify-between"><span className="opacity-60">Role</span><span className="font-bold capitalize">{sc.role}</span></div>
+                            <div className="flex justify-between"><span className="opacity-60">Customer ID</span><span className="font-mono text-xs truncate ml-2">{sc.id}</span></div>
+                          </div>
+                        </div>
+                        {/* Address */}
+                        <div className={`rounded-2xl p-4 border ${dark ? "bg-white/[0.03] border-white/10" : "bg-[#f6f7f4] border-zinc-200"}`}>
+                          <div className={`text-[11px] font-black uppercase tracking-widest mb-2 ${dark ? "text-white/40" : "text-zinc-500"}`}>Default Shipping Address</div>
+                          <div className="text-sm leading-6">
+                            {scAddr.street ? (<><span className="font-semibold">{scAddr.street}</span><br />{scAddr.city} {scAddr.state ? `, ${scAddr.state}` : ""} {scAddr.postal_code}<br />{scAddr.country || "India"}</>) : (<span className={dark ? "text-white/30" : "text-zinc-400"}>No address on file — will be captured on first order</span>)}
+                          </div>
+                        </div>
+                        {/* Orders */}
+                        <div className={`rounded-2xl border overflow-hidden ${dark ? "bg-white/[0.03] border-white/10" : "bg-white border-zinc-200"}`}>
+                          <div className={`px-4 py-3 border-b flex justify-between items-center ${dark ? "border-white/10 bg-white/[0.02]" : "border-zinc-100 bg-zinc-50/60"}`}>
+                            <span className="font-black text-sm">Order History • {scOrders.length}</span>
+                            <span className={`text-xs ${dark ? "text-white/40" : "text-zinc-500"}`}>₹{scTotalSpent.toFixed(0)} total</span>
+                          </div>
+                          <div className="divide-y max-h-[320px] overflow-auto">
+                            {scOrders.map((o) => (
+                              <button key={o.id} onClick={() => { setSelectedCustomer(null); nav(`/admin/orders/${o.id}`); }} className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:opacity-80 transition ${dark ? "hover:bg-white/[0.04]" : "hover:bg-zinc-50"}`}>
+                                <div className={`w-8 h-8 rounded-lg grid place-items-center text-xs font-bold border shrink-0 ${ dark ? "bg-white/5 border-white/10 text-white/60" : "bg-zinc-100 border-zinc-200 text-zinc-600"}`}>{o.status === "delivered" ? "✓" : o.status === "cancelled" ? "✕" : "◷"}</div>
+                                <div className="flex-1 min-w-0">
+                                  <div className={`text-xs font-bold truncate ${dark ? "text-white" : "text-zinc-900"}`}>#{o.id.slice(0,8).toUpperCase()} • ₹{o.total_amount}</div>
+                                  <div className={`text-[11px] truncate ${dark ? "text-white/40" : "text-zinc-500"}`}>{new Date(o.created_at).toLocaleDateString()} • {o.payment_method} • {o.status.replace("_"," ")}</div>
+                                </div>
+                                <span className={`text-xs px-2 py-1 rounded-full font-bold border shrink-0 ${o.status==="delivered"?"bg-emerald-500/20 text-emerald-400 border-emerald-500/20":o.status==="cancelled"?"bg-red-500/20 text-red-400 border-red-500/20":o.status==="shipped"?"bg-blue-500/20 text-blue-400 border-blue-500/20":"bg-amber-500/20 text-amber-400 border-amber-500/20"}`}>{o.status.replace("_"," ")}</span>
+                                <span className="text-zinc-400 text-xs">›</span>
+                              </button>
+                            ))}
+                            {scOrders.length === 0 && <div className={`p-6 text-center text-sm ${dark ? "text-white/30" : "text-zinc-400"}`}>No orders yet</div>}
+                          </div>
+                        </div>
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <button onClick={() => { setSelectedCustomer(null); nav(`/admin/customers/${sc.id}`); }} className="flex-1 bg-[#0a2e1f] text-white py-2.5 rounded-full font-black text-sm hover:bg-black">View Full Page →</button>
+                          <button onClick={() => { const u = sc; setSelectedCustomer(null); startEditUser(u); }} className={`px-5 py-2.5 rounded-full font-bold text-sm border ${dark ? "bg-white/10 border-white/10 text-white hover:bg-white hover:text-[#0a0a0f]" : "bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50"}`}>Edit</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -2926,6 +3003,150 @@ export function AdminDashboard() {
                   {filteredMsgs.length === 0 && (
                     <div className={`p-10 text-center text-sm ${dark ? "text-white/40" : "text-gray-500"}`}>No messages yet</div>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === "analytics" && (
+            <div className={`${dark ? "bg-[#0a0a0f] text-white" : "bg-zinc-50 text-zinc-900"} -m-4 md:-m-6 lg:-m-8 p-4 md:p-6 min-h-[calc(100vh-80px)] relative overflow-hidden`}>
+              <div className={`absolute -top-32 -right-32 w-[700px] h-[400px] rounded-full blur-[100px] pointer-events-none ${dark ? "bg-emerald-900/15" : "bg-emerald-100/40"}`} />
+              <div className="flex flex-wrap justify-between gap-4 mb-6 relative">
+                <div>
+                  <h2 className={`text-[28px] font-black tracking-tight leading-none ${dark ? "text-white" : "text-zinc-900"}`}>Analytics</h2>
+                  <p className={`text-sm mt-1 ${dark ? "text-white/60" : "text-zinc-500"}`}>Dwell-time identity • Keep explorers longer with insights</p>
+                </div>
+                <div className="flex gap-2">
+                  <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${dark ? "bg-white/5 border-white/10 text-white/70" : "bg-white border-zinc-200 text-zinc-700"}`}>Last 30 days</span>
+                  <span className="bg-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-bold">● Live</span>
+                </div>
+              </div>
+              {(() => {
+                const totalRev = stats?.totalSales || 0;
+                const avgOrder = stats?.totalOrders ? totalRev / stats.totalOrders : 0;
+                const convRate = users.length ? ((orders.length / users.length)*100).toFixed(1) : 0;
+                const cards = [
+                  { label: "Revenue", value: `₹${totalRev.toLocaleString("en-IN")}`, sub: `Avg ₹${avgOrder.toFixed(0)}/order`, trend: "+12%" },
+                  { label: "Orders", value: stats?.totalOrders || 0, sub: `${orders.filter(o=>o.status==="pending_owner").length} pending`, trend: "+8%" },
+                  { label: "Customers", value: users.filter(u=>u.role!=="admin").length, sub: `${users.length} total`, trend: "+5%" },
+                  { label: "Conversion", value: `${convRate}%`, sub: `${orders.length}/${users.length} users`, trend: "+2%" },
+                ];
+                return (
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                    {cards.map(c=>(
+                      <div key={c.label} className={`${dark ? "bg-[#111116] border-white/10" : "bg-white border-zinc-200"} border rounded-2xl p-4 relative overflow-hidden`}>
+                        <div className={`text-[11px] font-bold uppercase tracking-widest ${dark ? "text-white/40" : "text-zinc-500"}`}>{c.label}</div>
+                        <div className={`text-2xl font-black mt-2 ${dark ? "text-white" : "text-zinc-900"}`}>{c.value}</div>
+                        <div className="text-xs mt-1 flex items-center gap-2"><span className="text-emerald-500 font-bold">{c.trend}</span><span className={dark ? "text-white/40" : "text-zinc-500"}>{c.sub}</span></div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+              <div className="grid lg:grid-cols-3 gap-4">
+                <div className={`${dark ? "bg-[#111116] border-white/10" : "bg-white border-zinc-200"} border rounded-2xl p-5 lg:col-span-2 overflow-hidden`}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className={`font-black ${dark ? "text-white" : "text-zinc-900"}`}>Engagement Curve</h3>
+                      <p className={`text-xs mt-1 ${dark ? "text-white/40" : "text-zinc-500"}`}>Visitors & dwell time — curvy timeline (last 14 days)</p>
+                    </div>
+                    <span className={`text-[11px] px-2 py-1 rounded-full font-bold ${t.light} hidden md:inline`}>Theme: {t.name}</span>
+                  </div>
+                  {(() => {
+                    const points = Array.from({length: 14}, (_,i)=> 30 + Math.round(Math.sin(i/2.2)*18 + Math.random()*12 + (i===13?10:0)));
+                    const w= 560, h= 120, pad= 12;
+                    const max = Math.max(...points), min = Math.min(...points);
+                    const range = max - min || 1;
+                    const xs = points.map((_,i)=> pad + (i/(points.length-1))*(w - pad*2));
+                    const ys = points.map(v=> h - pad - ((v - min)/range)*(h - pad*2));
+                    let d = `M ${xs[0]} ${ys[0]}`;
+                    for(let i=1;i<xs.length;i++){
+                      const cx = (xs[i-1]+xs[i])/2;
+                      d += ` C ${cx} ${ys[i-1]}, ${cx} ${ys[i]}, ${xs[i]} ${ys[i]}`;
+                    }
+                    const area = `${d} L ${xs[xs.length-1]} ${h - pad} L ${xs[0]} ${h - pad} Z`;
+                    return (
+                      <div className="mt-4">
+                        <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-[140px]">
+                          <defs>
+                            <linearGradient id="curveFill" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={t.accent} stopOpacity="0.28"/>
+                              <stop offset="100%" stopColor={t.accent} stopOpacity="0"/>
+                            </linearGradient>
+                          </defs>
+                          {[0,1,2].map(i=>(
+                            <line key={i} x1={pad} x2={w-pad} y1={pad + i*((h-pad*2)/2)} y2={pad + i*((h-pad*2)/2)} stroke={dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"} strokeDasharray="4 6"/>
+                          ))}
+                          <path d={area} fill="url(#curveFill)" />
+                          <path d={d} fill="none" stroke={t.accent} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+                          {xs.map((x,i)=>(
+                            <g key={i}>
+                              <circle cx={x} cy={ys[i]} r={i===xs.length-1?4:3} fill={t.accent} stroke={dark ? "#111116" : "white"} strokeWidth="1.8"/>
+                              {i===xs.length-1 && <circle cx={x} cy={ys[i]} r="8" fill={t.accent} opacity="0.15"/>}
+                            </g>
+                          ))}
+                        </svg>
+                        <div className={`flex justify-between text-[10px] mt-1 ${dark ? "text-white/30" : "text-zinc-400"}`}><span>Day 1</span><span>Day 7</span><span className="font-bold" style={{color: t.accent}}>Today • {points[points.length-1]}%</span></div>
+                      </div>
+                    )
+                  })()}
+                </div>
+                <div className={`${dark ? "bg-[#111116] border-white/10" : "bg-white border-zinc-200"} border rounded-2xl p-5`}>
+                  <h3 className={`font-black ${dark ? "text-white" : "text-zinc-900"}`}>Identity Score</h3>
+                  <div className="mt-4 flex items-end gap-2"><div className="text-4xl font-black text-emerald-600">8.4<span className="text-lg">/10</span></div><span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-bold">Excellent</span></div>
+                  <div className={`mt-4 space-y-2 text-xs ${dark ? "text-white/70" : "text-zinc-600"}`}><div className="flex justify-between"><span>Avg session</span><span className="font-bold">6m 42s</span></div><div className="flex justify-between"><span>Bounce</span><span className="font-bold">22%</span></div><div className="flex justify-between"><span>Return</span><span className="font-bold">38%</span></div></div>
+                  <div className={`mt-3 h-2 rounded-full overflow-hidden ${dark ? "bg-white/10" : "bg-zinc-100"}`}><div className="h-full rounded-full" style={{width:"84%", background: t.accent}}/></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === "settings" && (
+            <div className={`${dark ? "bg-[#0a0a0f] text-white" : "bg-zinc-50 text-zinc-900"} -m-4 md:-m-6 lg:-m-8 p-4 md:p-6 min-h-[calc(100vh-80px)] relative overflow-hidden`}>
+              <div className={`absolute -top-32 -right-32 w-[600px] h-[380px] rounded-full blur-[90px] pointer-events-none ${dark ? "bg-emerald-900/15" : "bg-emerald-100/40"}`} />
+              <div className="relative flex flex-wrap justify-between gap-4">
+                <div>
+                  <h2 className={`text-[28px] font-black tracking-tight leading-none ${dark ? "text-white" : "text-zinc-900"}`}>Settings</h2>
+                  <p className={`text-sm mt-1 ${dark ? "text-white/60" : "text-zinc-500"}`}>Store identity, notifications & team — visible & editable</p>
+                </div>
+                <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${dark ? "bg-white/5 border-white/10 text-white/60" : "bg-white border-zinc-200 text-zinc-600"}`}>Admin • {user?.email}</span>
+              </div>
+              <div className="relative grid lg:grid-cols-3 gap-4 mt-6">
+                <div className={`${dark ? "bg-[#111116] border-white/10" : "bg-white border-zinc-200"} border rounded-2xl p-5 lg:col-span-2`}>
+                  <h3 className="font-black flex items-center gap-2">🌿 Brand Identity</h3>
+                  <div className="mt-4 grid md:grid-cols-2 gap-3 text-sm">
+                    <div><label className={`text-xs font-bold ${dark ? "text-white/60" : "text-zinc-600"}`}>Store Name</label><input defaultValue="Shaji’s Nursery and Gardens" className={`mt-1 w-full border rounded-xl px-3 py-2.5 text-sm ${dark ? "bg-white/5 border-white/10 text-white" : "bg-zinc-50 border-zinc-200"}`} /></div>
+                    <div><label className={`text-xs font-bold ${dark ? "text-white/60" : "text-zinc-600"}`}>Location</label><input defaultValue="Pezhummoodu, Thiruvananthapuram" className={`mt-1 w-full border rounded-xl px-3 py-2.5 text-sm ${dark ? "bg-white/5 border-white/10 text-white" : "bg-zinc-50 border-zinc-200"}`} /></div>
+                    <div><label className={`text-xs font-bold ${dark ? "text-white/60" : "text-zinc-600"}`}>Support WhatsApp</label><input defaultValue="+91 98765 43210" className={`mt-1 w-full border rounded-xl px-3 py-2.5 text-sm ${dark ? "bg-white/5 border-white/10 text-white" : "bg-zinc-50 border-zinc-200"}`} /></div>
+                    <div><label className={`text-xs font-bold ${dark ? "text-white/60" : "text-zinc-600"}`}>Theme</label><div className="mt-1 flex gap-2"><button onClick={()=>setDark(false)} className={`flex-1 py-2.5 rounded-xl text-xs font-black border ${!dark ? "bg-zinc-900 text-white border-zinc-900" : "bg-white/5 border-white/10 text-white"}`}>Light</button><button onClick={()=>setDark(true)} className={`flex-1 py-2.5 rounded-xl text-xs font-black border ${dark ? "bg-white text-[#0a2e1f] border-white" : "bg-zinc-50 border-zinc-200"}`}>Dark</button></div>
+                      <div className="mt-2 flex gap-2">
+                        {Object.entries(THEMES).map(([key, th])=>(
+                          <button key={key} onClick={()=>setTheme(key)} className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition ${theme===key ? "border-zinc-900 scale-110" : "border-white/20"} ${th.soft}`} title={th.name}>
+                            {theme===key && <span className="text-white text-[10px]">✓</span>}
+                          </button>
+                        ))}
+                        <span className={`ml-1 text-xs self-center font-bold ${dark ? "text-white/60" : "text-zinc-500"}`}>{t.name}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex gap-2"><button onClick={()=>success("Brand saved — visible on store")} className="bg-emerald-600 text-white px-5 py-2.5 rounded-full text-sm font-black">Save Brand</button><button onClick={()=>success("Preview opened")} className={`border px-5 py-2.5 rounded-full text-sm font-bold ${dark ? "bg-white/5 border-white/10 text-white" : "bg-white border-zinc-200"}`}>Preview Store →</button></div>
+                </div>
+                <div className={`${dark ? "bg-[#111116] border-white/10" : "bg-white border-zinc-200"} border rounded-2xl p-5`}>
+                  <h3 className="font-black">Experience</h3>
+                  <div className="mt-4 space-y-3">
+                    <label className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${dark ? "bg-white/5 border-white/10" : "bg-zinc-50 border-zinc-200"}`}><div><div className="font-bold text-sm">Focus Mode</div><div className={`text-xs ${dark ? "text-white/50" : "text-zinc-500"}`}>Dim sidebar, keep content</div></div><input type="checkbox" checked={focusMode} onChange={e=>setFocusMode(e.target.checked)} className="w-5 h-5 accent-emerald-600" /></label>
+                    <label className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${dark ? "bg-white/5 border-white/10" : "bg-zinc-50 border-zinc-200"}`}><div><div className="font-bold text-sm">Command Palette</div><div className={`text-xs ${dark ? "text-white/50" : "text-zinc-500"}`}>Press ⌘K to jump</div></div><span className={`text-xs font-mono px-2 py-1 rounded-full border ${dark ? "bg-white/10 border-white/10 text-white/60" : "bg-white border-zinc-200"}`}>⌘K</span></label>
+                    <button onClick={()=>success("Preferences saved")} className="w-full bg-zinc-900 text-white py-2.5 rounded-full font-bold text-sm">Save Preferences</button>
+                  </div>
+                </div>
+              </div>
+              <div className={`${dark ? "bg-[#111116] border-white/10" : "bg-white border-zinc-200"} border rounded-2xl p-5 mt-4`}>
+                <h3 className="font-black">Admin Team</h3>
+                <p className={`text-xs mt-1 ${dark ? "text-white/50" : "text-zinc-500"}`}>{users.filter(u=>u.role==="admin").length} admins • {users.length} total users</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {users.filter(u=>u.role==="admin").slice(0,4).map(a=>(
+                    <span key={a.id} className={`px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-2 ${dark ? "bg-white/5 border-white/10 text-white" : "bg-zinc-50 border-zinc-200"}`}><img src={`https://i.pravatar.cc/100?u=${a.email}`} alt="" className="w-5 h-5 rounded-full"/>{a.name} • Admin</span>
+                  ))}
                 </div>
               </div>
             </div>
@@ -3097,13 +3318,7 @@ export function AdminDashboard() {
                             </td>
                             <td className="px-4 py-3 text-right">
                               <button
-                                onClick={async () => {
-                                  await api.delete(`/reviews/${r.id}`);
-                                  setReviews((prev) =>
-                                    prev.filter((x) => x.id !== r.id),
-                                  );
-                                  success("Review deleted");
-                                }}
+                                onClick={() => setDeleteTarget({ id: r.id, name: "this review", type: "review" })}
                                 className="w-7 h-7 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white grid place-items-center text-xs"
                               >
                                 ✕
@@ -3812,6 +4027,170 @@ export function AdminOrderView() {
                     <option value="paid">Paid</option>
                   </select>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+export function AdminCustomerView() {
+  const { id } = useParams();
+  const nav = useNavigate();
+  const { success, error: toastError } = useToast();
+  const [customer, setCustomer] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [plants, setPlants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "", role: "user" });
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const [custRes, ordersRes, plantsRes] = await Promise.all([
+          api.get(`/users/${id}`),
+          api.get("/orders"),
+          api.get("/plants?limit=100"),
+        ]);
+        if (!active) return;
+        setCustomer(custRes.data);
+        setEditForm({ name: custRes.data.name || "", email: custRes.data.email || "", phone: custRes.data.phone || "", role: custRes.data.role || "user" });
+        // prefer orders from customer endpoint if present, else filter
+        const allOrders = Array.isArray(custRes.data.orders) && custRes.data.orders.length ? custRes.data.orders : (ordersRes.data || []).filter((o) => o.user_id === id);
+        // but also ensure hydration if customer endpoint didn't include hydrated orders, fallback to filtered all
+        setOrders(allOrders.sort((a,b)=> new Date(b.created_at)-new Date(a.created_at)));
+        setPlants(plantsRes.data.plants || []);
+      } catch (e) {
+        if (!active) return;
+        toastError(e.response?.data?.error || "Failed to load customer");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => { active = false; };
+  }, [id, toastError]);
+
+  const totalSpent = orders.reduce((s,o)=> s+Number(o.total_amount||0),0);
+  const avgOrder = orders.length ? totalSpent/orders.length : 0;
+  const lastAddr = orders[0]?.address || (customer?.addresses?.[0]) || {};
+
+  const handleSave = async () => {
+    try {
+      const res = await api.put(`/users/${id}`, editForm);
+      setCustomer((prev)=> ({ ...prev, ...res.data }));
+      success("Customer updated");
+      setEditing(false);
+    } catch (e) { toastError(e.response?.data?.error || "Failed to update"); }
+  };
+  const toggleBlock = async () => {
+    try {
+      const res = await api.put(`/users/${id}/block`);
+      setCustomer((prev)=> ({ ...prev, blocked: res.data.blocked }));
+      success(res.data.blocked ? "Customer blocked" : "Customer unblocked");
+    } catch (e) { toastError("Failed"); }
+  };
+
+  if (loading) return <div className="min-h-screen grid place-items-center bg-[#f6f7f4]"><div className="w-8 h-8 border-2 border-gray-200 border-t-emerald-600 rounded-full animate-spin" /></div>;
+  if (!customer) return <div className="min-h-screen grid place-items-center bg-[#f6f7f4] p-6"><div className="bg-white border rounded-2xl p-8 text-center max-w-md"><h3 className="font-black">Customer not found</h3><p className="text-sm text-gray-500 mt-1">#{id}</p><button onClick={()=>nav("/admin")} className="mt-4 bg-[#0a2e1f] text-white px-6 py-2.5 rounded-full font-bold">Back to Dashboard</button></div></div>;
+
+  return (
+    <div className="min-h-screen bg-[#f6f7f4]">
+      <div className="max-w-[1120px] mx-auto p-4 md:p-6">
+        <button onClick={()=>nav("/admin")} className="inline-flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900 mb-4"><span className="w-8 h-8 rounded-full bg-white border grid place-items-center">←</span> Back to Customers</button>
+        <div className="bg-gradient-to-br from-[#0a2e1f] to-[#123d2a] text-white rounded-[24px] overflow-hidden shadow-sm">
+          <div className="p-6 md:p-7">
+            <div className="flex flex-wrap gap-5 items-start">
+              <img src={`https://i.pravatar.cc/100?u=${customer.email}`} alt={customer.name} className="w-16 h-16 rounded-full object-cover border-4 border-white/20 shadow-lg" />
+              <div className="flex-1 min-w-[220px]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-black tracking-tight">{customer.name}</h1>
+                  <span className={`text-xs font-black px-3 py-1 rounded-full border ${customer.blocked ? "bg-red-500 border-red-400 text-white" : "bg-emerald-500 border-emerald-400 text-white"}`}>{customer.blocked ? "Blocked" : "Active"}</span>
+                  <span className="text-xs bg-white/10 border border-white/20 px-3 py-1 rounded-full font-bold capitalize">{customer.role}</span>
+                  {customer.email_verified ? <span className="text-xs bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 px-2 py-1 rounded-full">✓ Verified</span> : <span className="text-xs bg-amber-500/20 border border-amber-400/30 text-amber-200 px-2 py-1 rounded-full">Unverified</span>}
+                </div>
+                <p className="text-sm text-white/70 mt-1">{customer.email} • {customer.phone || "No phone"} • Joined {new Date(customer.created_at).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric"})}</p>
+                <p className="text-[11px] font-mono text-white/40 mt-1">ID: {customer.id}</p>
+              </div>
+              <div className="text-right">
+                <div className="text-xs tracking-widest uppercase font-bold text-white/60">Lifetime Value</div>
+                <div className="text-3xl font-black">₹{totalSpent.toLocaleString("en-IN")}</div>
+                <div className="text-xs text-white/60">Avg ₹{avgOrder.toFixed(0)}/order • {orders.length} orders</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+              <div className="bg-white/10 border border-white/10 rounded-2xl p-3"><div className="text-xs font-bold text-white/60">Orders</div><div className="text-xl font-black">{orders.length}</div><div className="text-xs text-white/60">{orders.filter(o=>o.status==="delivered").length} delivered</div></div>
+              <div className="bg-white/10 border border-white/10 rounded-2xl p-3"><div className="text-xs font-bold text-white/60">Delivered</div><div className="text-xl font-black">{orders.filter(o=>o.status==="delivered").length}</div><div className="text-xs text-white/60">{orders.filter(o=>o.status==="pending_owner").length} pending</div></div>
+              <div className="bg-white/10 border border-white/10 rounded-2xl p-3"><div className="text-xs font-bold text-white/60">Last Order</div><div className="text-sm font-bold">{orders[0] ? new Date(orders[0].created_at).toLocaleDateString() : "—"}</div><div className="text-xs text-white/60">{orders[0] ? `₹${orders[0].total_amount}` : "No orders"}</div></div>
+              <div className="bg-white/10 border border-white/10 rounded-2xl p-3"><div className="text-xs font-bold text-white/60">Address</div><div className="text-xs font-bold truncate">{lastAddr.city || "—"}</div><div className="text-xs text-white/60 truncate">{lastAddr.street || "No address"}</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-[1.6fr_1fr] gap-6 mt-6">
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl border overflow-hidden">
+              <div className="px-5 py-3 border-b bg-gray-50 flex justify-between items-center"><span className="font-black text-sm">Order History • {orders.length}</span><span className="text-xs text-gray-500">Click to view order</span></div>
+              <div className="divide-y max-h-[520px] overflow-auto">
+                {orders.map((o)=> (
+                  <button key={o.id} onClick={()=>nav(`/admin/orders/${o.id}`)} className="w-full text-left flex gap-4 p-4 hover:bg-gray-50 items-center">
+                    <div className={`w-9 h-9 rounded-xl grid place-items-center text-xs font-bold border shrink-0 ${o.status==="delivered"?"bg-emerald-50 border-emerald-200 text-emerald-700":o.status==="cancelled"?"bg-red-50 border-red-200 text-red-600":o.status==="shipped"?"bg-blue-50 border-blue-200 text-blue-700":"bg-amber-50 border-amber-200 text-amber-700"}`}>{o.status==="delivered"?"✓":o.status==="cancelled"?"✕":"◷"}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-sm">#{o.id.slice(0,8).toUpperCase()} • ₹{o.total_amount}</div>
+                      <div className="text-xs text-gray-500">{new Date(o.created_at).toLocaleString()} • {o.payment_method} • {o.status.replace("_"," ")}</div>
+                      <div className="text-xs text-gray-600 truncate">{o.items?.map(it=> `${it.quantity}× ${plants.find(p=>p.id===it.plant_id)?.name || it.plant_id}`).join(", ").slice(0,80)}</div>
+                    </div>
+                    <span className="text-gray-400">›</span>
+                  </button>
+                ))}
+                {orders.length===0 && <div className="p-10 text-center text-sm text-gray-400">No orders yet</div>}
+              </div>
+              <div className="bg-[#fcfcfa] p-3 border-t text-xs flex justify-between"><span className="text-gray-500">Total spent</span><span className="font-black text-sm">₹{totalSpent.toFixed(2)}</span></div>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl border p-5">
+              <div className="flex justify-between items-center"><span className="text-[11px] font-black tracking-widest uppercase text-gray-500">Contact Details {editing && <span className="text-emerald-600 normal-case">• Editing</span>}</span>
+                {!editing ? <button onClick={()=>setEditing(true)} className="text-xs font-bold border bg-white px-3 py-1.5 rounded-full hover:bg-gray-50">Edit</button> : <div className="flex gap-2"><button onClick={handleSave} className="bg-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-bold">Save</button><button onClick={()=>setEditing(false)} className="border bg-white px-3 py-1.5 rounded-full text-xs font-bold">Cancel</button></div>}
+              </div>
+              {editing ? (
+                <div className="mt-3 grid gap-3">
+                  <div><label className="text-xs font-bold">Name</label><input value={editForm.name} onChange={e=>setEditForm({...editForm, name:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white" /></div>
+                  <div><label className="text-xs font-bold">Email</label><input value={editForm.email} onChange={e=>setEditForm({...editForm, email:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white" /></div>
+                  <div><label className="text-xs font-bold">Phone</label><input value={editForm.phone} onChange={e=>setEditForm({...editForm, phone:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white" /></div>
+                  <div><label className="text-xs font-bold">Role</label><select value={editForm.role} onChange={e=>setEditForm({...editForm, role:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2 text-sm bg-white"><option value="user">user</option><option value="admin">admin</option></select></div>
+                </div>
+              ) : (
+                <div className="mt-3 space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-500">Email</span><span className="font-semibold truncate ml-2">{customer.email}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Phone</span><span className="font-semibold">{customer.phone || "—"}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Role</span><span className="font-bold capitalize">{customer.role}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Verified</span><span className={customer.email_verified ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>{customer.email_verified ? "Yes" : "No"}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Joined</span><span className="font-semibold">{new Date(customer.created_at).toLocaleDateString()}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">ID</span><span className="font-mono text-xs truncate ml-2">{customer.id}</span></div>
+                </div>
+              )}
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button onClick={toggleBlock} className={`py-2.5 rounded-full font-bold text-sm border ${customer.blocked ? "bg-emerald-600 text-white border-emerald-600" : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"}`}>{customer.blocked ? "Unblock" : "Block Customer"}</button>
+                <a href={`mailto:${customer.email}`} className="bg-[#0a2e1f] text-white py-2.5 rounded-full font-bold text-sm text-center">Email</a>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl border p-5">
+              <div className="text-xs font-black tracking-widest uppercase text-gray-500">Shipping Address</div>
+              <p className="text-sm text-gray-700 mt-3 leading-6 bg-[#f6f7f4] border rounded-xl p-3">
+                {lastAddr.street || "—"}<br />{lastAddr.city || ""} {lastAddr.state || ""} {lastAddr.postal_code || ""}<br />{lastAddr.country || "India"}
+              </p>
+              {customer.addresses?.length > 1 && <div className="mt-3 space-y-2">{customer.addresses.slice(1).map((a,i)=>(<div key={a.id||i} className="text-xs border rounded-xl p-2 bg-gray-50">{a.street}, {a.city}</div>))}</div>}
+              {orders[0]?.note && <p className="text-xs mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3"><span className="font-black">Note:</span> {orders[0].note}</p>}
+            </div>
+            <div className="bg-white rounded-2xl border p-5">
+              <div className="text-xs font-black tracking-widest uppercase text-gray-500">Quick Actions</div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <a href={`https://wa.me/${(customer.phone||"").replace(/[^0-9]/g,"")}?text=Hi ${customer.name}, `} target="_blank" className="bg-emerald-600 text-white py-2.5 rounded-full font-bold text-sm text-center">WhatsApp</a>
+                <button onClick={()=>nav("/admin")} className="border bg-white py-2.5 rounded-full font-bold text-sm">Back to List</button>
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-# Verdant - Plant Marketing & Selling Platform
+# Shaji’s Nursery and Gardens - Plant Marketing & Selling Platform
 
 Full-stack e-commerce for plants.
 
@@ -38,7 +38,7 @@ npm run dev  # http://localhost:5173
 ```
 
 ## Demo Accounts
-- Admin: admin@greennest.com / admin123  (seeded in memoryStore.js, login via /admin/login)
+- Admin: mohammedashiqueofficial7@gmail.com / admin@2026  (seeded in memoryStore.js + Supabase users, login via /admin/login or /login → redirects to /admin)
 - User: register new account (includes Geolocation "Get Current Location" reverse-geocode via Nominatim)
 
 ## Features Implemented

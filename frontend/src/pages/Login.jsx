@@ -5,86 +5,105 @@ import { useNavigate, Link } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
 import { useToast } from "../components/Toast";
 
+function EyeIcon({ open }){
+  return open ? (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3.2"/><path d="M3 3l18 18"/></svg>
+  ) : (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3.2"/></svg>
+  );
+}
+
 export default function Login() {
   const { t } = useLanguage();
   const [form, setForm] = useState({ email: "", password: "" });
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const [show, setShow] = useState(false);
+  const [focused, setFocused] = useState(null);
   const { login } = useAuth();
   const nav = useNavigate();
   const { success, error: toastError } = useToast();
+
   const submit = async (e) => {
     e.preventDefault();
+    if(!form.email.trim() || !form.password){ setErr('Please fill all fields'); return; }
     setLoading(true);
     setErr("");
     try {
       const r = await api.post("/auth/login", form);
       login(r.data.token, r.data.user);
       success(`Welcome back, ${r.data.user.name || "Green Friend"}!`);
+      try{ window.dispatchEvent(new CustomEvent('show-ai-feature',{detail:{source:'login'}})); }catch{}
       nav(r.data.user.role === "admin" ? "/admin" : "/dashboard");
     } catch (e) {
-      const message = e.response?.data?.error || "Login failed";
+      const message = e.response?.data?.error || "Login failed — check your email & password";
       setErr(message);
       toastError(message);
     } finally {
       setLoading(false);
     }
   };
-  return (
-    <div className="min-h-[85vh] bg-[#f6f7f4] flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-[920px] bg-white rounded-[28px] border shadow-xl overflow-hidden grid lg:grid-cols-[1.1fr_0.9fr]">
-        {/* left form */}
-        <div className="p-6 md:p-8 lg:p-10">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-[#0a2e1f]"
-          >
-            ← Verdant
-          </Link>
-          <div className="mt-6 flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-[#0a2e1f] text-white grid place-items-center">
-              🌿
-            </span>
-            <div>
-              <h1 className="text-2xl font-black tracking-tight leading-none">
-                {t("auth_welcome_back")}
-              </h1>
-              <p className="text-xs text-gray-500">{t("auth_est")}</p>
-            </div>
-          </div>
-          <p className="mt-3 text-sm text-gray-600">
-            {t("auth_signin_desc")}{" "}
-            <Link to="/register" className="font-black text-emerald-700">
-              {t("auth_create_account")}
-            </Link>
-          </p>
 
-          <form onSubmit={submit} className="mt-6 space-y-4">
+  return (
+    <div className="min-h-[86vh] bg-[#fdfbf7] relative overflow-hidden flex items-center justify-center px-4 py-10">
+      {/* earthy blobs */}
+      <div className="pointer-events-none absolute -top-24 -left-24 w-[520px] h-[520px] bg-[#e8f0e3] rounded-full blur-[90px] opacity-70" />
+      <div className="pointer-events-none absolute -bottom-24 -right-24 w-[520px] h-[520px] bg-emerald-100/60 rounded-full blur-[90px] opacity-60" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.03]" style={{backgroundImage:`radial-gradient(#0a2e1f 1px, transparent 1px)`, backgroundSize:'22px 22px'}} />
+
+      <div className="relative w-full max-w-[420px]">
+        {/* brand echo */}
+        <Link to="/" className="mx-auto mb-5 flex items-center justify-center gap-2 text-xs font-black tracking-widest uppercase text-[#a8a29e]">
+          <span className="w-6 h-6 rounded-full bg-[#0a2e1f] text-white grid place-items-center text-[11px]">🌿</span> GreenNest • Est. 2022
+        </Link>
+
+        {/* glass card */}
+        <div className="bg-white/85 backdrop-blur-2xl border border-white/60 rounded-[28px] shadow-card overflow-hidden">
+          {/* leaf header */}
+          <div className="px-7 md:px-8 pt-8 pb-2 text-center">
+            <div className="mx-auto w-11 h-11 rounded-2xl bg-[#0a2e1f] text-white grid place-items-center shadow-lg shadow-emerald-900/20">
+              <span className="text-[18px]">🌿</span>
+            </div>
+            <h1 className="mt-4 text-[26px] font-black tracking-tight leading-none" style={{fontFamily:'Outfit, sans-serif'}}>
+              {t("auth_welcome_back") || 'Welcome back'}
+            </h1>
+            <p className="mt-1.5 text-sm leading-5 text-[#57534e]">{t("auth_signin_desc") || 'Sign in to track orders & get care support.'} <Link to="/register" className="font-black text-emerald-700 hover:text-emerald-800 underline decoration-emerald-200 underline-offset-4">{t("auth_create_account") || 'Create account'}</Link></p>
+          </div>
+
+          <form onSubmit={submit} noValidate className="px-7 md:px-8 py-6 space-y-4">
             {err && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-                {err}
+              <div role="alert" className="bg-red-50 border border-red-200 text-red-800 px-3.5 py-3 rounded-2xl text-sm flex gap-2.5 items-start">
+                <span className="w-7 h-7 rounded-full bg-red-600 text-white grid place-items-center shrink-0 text-xs font-black">!</span>
+                <span className="leading-5 font-medium">{err}</span>
               </div>
             )}
 
-            <div>
-              <label className="text-xs font-black tracking-widest uppercase text-gray-600">
-                {t("auth_email_address")}
-              </label>
+            {/* email floating */}
+            <div className="relative">
               <input
-                placeholder="you@email.com"
+                id="login-email"
                 type="email"
+                placeholder=" "
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="mt-1.5 w-full bg-white border-2 border-gray-100 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50"
+                onFocus={()=>setFocused('email')}
+                onBlur={()=>setFocused(null)}
+                autoComplete="email"
                 required
+                className={`peer w-full bg-white border rounded-2xl px-4 pt-6 pb-2.5 text-[14px] outline-none transition shadow-sm placeholder-transparent
+                  ${err && !form.email ? 'border-red-300' : focused==='email' ? 'border-emerald-300 ring-4 ring-emerald-50 bg-white' : 'border-[#e7e5e4] focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50'}`}
               />
+              <label htmlFor="login-email" className={`absolute left-4 transition-all duration-150 pointer-events-none
+                ${form.email || focused==='email' ? 'top-[7px] text-[11px] font-black tracking-widest uppercase text-emerald-700' : 'top-[14px] text-sm text-[#8a857e]'}
+                peer-focus:top-[7px] peer-focus:text-[11px] peer-focus:font-black peer-focus:tracking-widest peer-focus:uppercase peer-focus:text-emerald-700`}>
+                {t("auth_email_address") || 'Email address'}
+              </label>
             </div>
+
+            {/* password floating */}
             <div>
-              <div className="flex justify-between items-center">
-                <label className="text-xs font-black tracking-widest uppercase text-gray-600">
-                  {t("auth_password")}
-                </label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label htmlFor="login-password" className="text-[11px] font-black tracking-widest uppercase text-transparent select-none">Password</label>
                 <button
                   type="button"
                   onClick={async () => {
@@ -92,113 +111,66 @@ export default function Login() {
                     if (!email) return;
                     try {
                       await api.post("/auth/forgot-password", { email });
-                      success(
-                        "If that account exists, reset instructions were sent",
-                      );
+                      success("If that account exists, reset instructions were sent");
                     } catch (e) {
-                      toastError(
-                        e.response?.data?.error ||
-                          "Unable to start password reset",
-                      );
+                      toastError(e.response?.data?.error || "Unable to start password reset");
                     }
                   }}
-                  className="text-xs font-bold text-emerald-700"
+                  className="text-xs font-bold text-emerald-700 hover:text-emerald-800"
                 >
-                  {t("auth_forgot")}
+                  {t("auth_forgot") || 'Forgot?'}
                 </button>
               </div>
-              <div className="mt-1.5 relative">
+              <div className="relative">
                 <input
-                  placeholder="••••••••"
+                  id="login-password"
+                  placeholder=" "
                   type={show ? "text" : "password"}
                   value={form.password}
-                  onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
-                  }
-                  className="w-full bg-white border-2 border-gray-100 rounded-xl px-4 py-3 pr-12 text-sm outline-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50"
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onFocus={()=>setFocused('password')}
+                  onBlur={()=>setFocused(null)}
+                  autoComplete="current-password"
                   required
+                  className={`peer w-full bg-white border rounded-2xl px-4 pt-6 pb-2.5 pr-12 text-[14px] outline-none transition shadow-sm placeholder-transparent
+                    ${focused==='password' ? 'border-emerald-300 ring-4 ring-emerald-50' : 'border-[#e7e5e4] focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50'}`}
                 />
+                <label htmlFor="login-password" className={`absolute left-4 transition-all pointer-events-none
+                  ${form.password || focused==='password' ? 'top-[7px] text-[11px] font-black tracking-widest uppercase text-emerald-700' : 'top-[14px] text-sm text-[#8a857e]'}
+                  peer-focus:top-[7px] peer-focus:text-[11px] peer-focus:font-black peer-focus:tracking-widest peer-focus:uppercase peer-focus:text-emerald-700`}>
+                  {t("auth_password") || 'Password'}
+                </label>
                 <button
                   type="button"
                   onClick={() => setShow(!show)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-gray-500 bg-gray-50 border px-2 py-1 rounded-full"
+                  aria-label={show ? 'Hide password' : 'Show password'}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-[#f6f7f4] border border-[#e7e5e4] grid place-items-center text-[#57534e] hover:bg-white transition"
                 >
-                  {show ? t("auth_hide") : t("auth_show")}
+                  <EyeIcon open={show} />
                 </button>
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-gray-600">
-              <input type="checkbox" className="rounded border-2" />{" "}
-              {t("auth_keep_signed")}
+            <label className="flex items-center gap-2.5 text-sm text-[#57534e] select-none cursor-pointer">
+              <input type="checkbox" className="w-[18px] h-[18px] rounded-md border-2 border-[#e7e5e4] text-emerald-600 focus:ring-emerald-200" /> {t("auth_keep_signed") || 'Keep me signed in'}
             </label>
 
             <button
               disabled={loading}
-              className="w-full bg-[#0a2e1f] text-white py-3.5 rounded-full font-black text-sm hover:bg-black transition disabled:opacity-60 shadow"
+              className="w-full bg-[#0a2e1f] text-white py-3.5 rounded-full font-black text-sm hover:bg-black transition disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-emerald-900/10 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200"
             >
-              {loading ? t("auth_signing_in") : t("auth_sign_in_continue")}
-            </button>
-
-            <div className="flex items-center gap-3 py-1">
-              <div className="flex-1 h-px bg-gray-200"></div>
-              <span className="text-xs text-gray-400 font-bold tracking-widest uppercase">
-                {t("auth_or")}
-              </span>
-              <div className="flex-1 h-px bg-gray-200"></div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => alert("Google login soon")}
-              className="w-full bg-white border-2 border-gray-100 py-3 rounded-full font-bold text-sm flex items-center justify-center gap-2 hover:bg-gray-50"
-            >
-              <span className="w-6 h-6 rounded-full bg-white border grid place-items-center text-xs font-black">
-                G
-              </span>{" "}
-              {t("auth_continue_google")}
+              {loading ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" /> {t("auth_signing_in") || 'Signing in…'} </> : <>{t("auth_sign_in_continue") || 'Sign in →'}</>}
             </button>
           </form>
+
+          <div className="px-7 md:px-8 pb-7 pt-1 text-center text-sm text-[#57534e]">
+            No account? <Link to="/register" className="font-black text-[#0a2e1f] hover:text-emerald-800 underline underline-offset-4">Create one</Link>
+            <span className="mx-2 text-[#e7e5e4]">•</span>
+            <Link to="/" className="font-bold text-[#57534e] hover:text-[#0a2e1f]">Back to store</Link>
+          </div>
         </div>
 
-        {/* right visual - new 2022 themed */}
-        <div className="hidden lg:flex bg-[#0a2e1f] text-white relative overflow-hidden p-8 flex-col">
-          <img
-            src="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800"
-            alt="plants"
-            className="absolute inset-0 w-full h-full object-cover opacity-30"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0a2e1f] via-[#0a2e1f]/40 to-transparent"></div>
-          <div className="relative">
-            <span className="inline-flex bg-white text-[#0a2e1f] text-xs font-black px-3 py-1.5 rounded-full">
-              {t("auth_est_badge")}
-            </span>
-            <h3 className="mt-4 text-[30px] font-black leading-none">
-              {t("auth_plants_thrive")}
-              <br />
-              <span className="font-serif italic font-normal text-emerald-300">
-                {t("auth_actually_thrive")}
-              </span>
-            </h3>
-            <p className="mt-3 text-sm text-white/80 leading-6">
-              {t("auth_plants_desc")}
-            </p>
-          </div>
-          <div className="relative mt-auto bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-4">
-            <div className="flex items-center gap-3">
-              <img
-                src="https://i.pravatar.cc/100?img=8"
-                alt="user"
-                className="w-8 h-8 rounded-full object-cover border-2 border-white/30"
-              />
-              <div className="text-xs">
-                <div className="font-black">{t("auth_quote_name")}</div>
-                <div className="text-white/70">{t("auth_quote")}</div>
-              </div>
-              <span className="ml-auto text-amber-300 text-xs">★★★★★</span>
-            </div>
-          </div>
-        </div>
+        <p className="mt-4 text-center text-[11px] leading-4 text-[#a8a29e]">Protected by grower care • <Link to="/privacy" className="underline decoration-dotted underline-offset-4">Privacy</Link> • <Link to="/terms" className="underline decoration-dotted underline-offset-4">Terms</Link> • <Link to="/faq" className="underline decoration-dotted underline-offset-4">FAQs</Link></p>
       </div>
     </div>
   );

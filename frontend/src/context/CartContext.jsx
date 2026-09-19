@@ -10,6 +10,7 @@ export const CartProvider=({children})=>{
       if(ex) return prev.map(p=>p.id===plant.id?{...p,quantity:p.quantity+qty}:p);
       return [...prev,{...plant,quantity:qty}];
     });
+    try{ window.dispatchEvent(new CustomEvent('show-ai-feature',{detail:{source:'cart_add'}})); }catch{}
   };
   const update=(id,qty)=> setCart(prev=> prev.map(p=>p.id===id?{...p,quantity:qty}:p).filter(p=>p.quantity>0));
   const remove=(id)=> setCart(prev=>prev.filter(p=>p.id!==id));

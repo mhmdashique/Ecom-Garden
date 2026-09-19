@@ -199,7 +199,7 @@ export default function UserOrderDetail() {
       180,
     );
     doc.text(lines, 14, 52);
-    doc.text("Verdant • Follow seasonal reminders for best growth", 14, 280);
+    doc.text("Shaji’s Nursery and Gardens • Follow seasonal reminders for best growth", 14, 280);
     doc.save(`${plant.name}-care-guide.pdf`);
     success(`${plant.name} care guide downloaded`);
   };
@@ -215,7 +215,7 @@ export default function UserOrderDetail() {
       try {
         await navigator.share({
           title: `Order ${order.id.slice(0, 8)}`,
-          text: `Verdant order ${order.id}`,
+          text: `Shaji’s Nursery and Gardens order ${order.id}`,
           url,
         });
       } catch {}
@@ -247,7 +247,7 @@ export default function UserOrderDetail() {
     doc.setFontSize(8);
     doc.text("🌿", 12.5, 15.5);
     doc.setFontSize(14);
-    doc.text("Verdant", 24, 13);
+    doc.text("Shaji’s Nursery and Gardens", 24, 13);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(167, 243, 208);
@@ -386,7 +386,7 @@ export default function UserOrderDetail() {
     doc.setTextColor(80, 80, 80);
     doc.setFontSize(6.5);
     doc.text(
-      "Thank you for growing with Verdant! • GST bill on request • Questions? hello@greenest.com • +91 98765 43210",
+      "Thank you for growing with Shaji’s Nursery and Gardens! • GST bill on request • Questions? hello@greenest.com • +91 98765 43210",
       pageW / 2,
       fy,
       { align: "center" },
@@ -406,7 +406,7 @@ export default function UserOrderDetail() {
       fy + 4,
       { align: "right" },
     );
-    doc.save(`Verdant-Invoice-${o.id.slice(0, 8).toUpperCase()}.pdf`);
+    doc.save(`Shaji’s Nursery and Gardens-Invoice-${o.id.slice(0, 8).toUpperCase()}.pdf`);
     success("Invoice downloaded");
   };
   const submitCancel = async () => {

@@ -74,7 +74,7 @@ export const notifyLogin = (user, request = {}) => {
   });
   const userAgent = request.headers?.["user-agent"] || "Unknown";
   const subject = `New login to your account — ${user.email}`;
-  const company = process.env.COMPANY_NAME || "Verdant";
+  const company = process.env.COMPANY_NAME || "Shaji’s Nursery and Gardens";
   const text = [
     `Hi ${user.name || "there"},`,
     "",
@@ -101,7 +101,7 @@ export const notifyLogin = (user, request = {}) => {
 };
 
 export const notifyContact = ({ name, email, subject, message }) => {
-  const mailSubject = `Verdant contact: ${subject || "New customer message"}`;
+  const mailSubject = `Shaji’s Nursery and Gardens contact: ${subject || "New customer message"}`;
   const text = [
     "New customer contact message",
     `Name: ${name}`,
@@ -114,7 +114,7 @@ export const notifyContact = ({ name, email, subject, message }) => {
     subject: mailSubject,
     text,
     replyTo: email,
-    html: `<h2>New Verdant contact message</h2><p><b>Name:</b> ${escapeHtml(name)}</p><p><b>Email:</b> ${escapeHtml(email)}</p><p><b>Subject:</b> ${escapeHtml(subject || "(none)")}</p><hr/><p>${escapeHtml(message).replace(/\n/g, "<br/>")}</p>`,
+    html: `<h2>New Shaji’s Nursery and Gardens contact message</h2><p><b>Name:</b> ${escapeHtml(name)}</p><p><b>Email:</b> ${escapeHtml(email)}</p><p><b>Subject:</b> ${escapeHtml(subject || "(none)")}</p><hr/><p>${escapeHtml(message).replace(/\n/g, "<br/>")}</p>`,
   });
 };
 
@@ -123,54 +123,54 @@ export const thankYouContact = ({ name, email, subject }) => {
   const text = [
     `Hi ${name},`,
     "",
-    "Thank you for contacting Verdant! We have received your message and will get back to you within 2 hours.",
+    "Thank you for contacting Shaji’s Nursery and Gardens! We have received your message and will get back to you within 2 hours.",
     "",
     `Topic: ${safeSubject}`,
     "",
     "In the meantime, feel free to browse our plant collection at greennest.com.",
     "",
     "Warm regards,",
-    "The Verdant Team 🌿",
+    "The Shaji’s Nursery and Gardens Team 🌿",
   ].join("\n");
   const html = `
     <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#f6f7f4;padding:32px;border-radius:16px">
       <div style="background:#0a2e1f;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
-        <h1 style="color:#6ee7b7;margin:0;font-size:22px">🌿 Verdant</h1>
+        <h1 style="color:#6ee7b7;margin:0;font-size:22px">🌿 Shaji’s Nursery and Gardens</h1>
       </div>
       <h2 style="color:#0a2e1f;margin-top:0">Thank you, ${escapeHtml(name)}!</h2>
       <p style="color:#444;line-height:1.6">We've received your message about <b>${escapeHtml(safeSubject)}</b> and our team will get back to you within <b>2 hours</b>.</p>
       <div style="background:#fff;border:1px solid #d1fae5;border-radius:12px;padding:16px;margin:20px 0">
         <p style="margin:0;color:#065f46;font-size:14px">⏰ Expected reply: <b>within 2 hours</b><br/>📧 Reply to this email anytime</p>
       </div>
-      <p style="color:#666;font-size:13px">Warm regards,<br/><b>The Verdant Team 🌿</b></p>
+      <p style="color:#666;font-size:13px">Warm regards,<br/><b>The Shaji’s Nursery and Gardens Team 🌿</b></p>
     </div>`;
   return sendMail({
     to: email,
-    subject: `We got your message — Verdant`,
+    subject: `We got your message — Shaji’s Nursery and Gardens`,
     text,
     html,
   });
 };
 
 export const notifyRegistration = ({ name, email }) => {
-  const subject = "Welcome to Verdant — Your account has been created";
+  const subject = "Welcome to Shaji’s Nursery and Gardens — Your account has been created";
   const text = [
     `Hi ${name},`,
     "",
-    "Welcome to Verdant! Your account has been created successfully.",
+    "Welcome to Shaji’s Nursery and Gardens! Your account has been created successfully.",
     "",
     "You can now log in to browse our plant collection, place orders, and manage your account.",
     "",
     "If you have any questions, feel free to reach out to our support team.",
     "",
     "Happy planting! 🌿",
-    "The Verdant Team",
+    "The Shaji’s Nursery and Gardens Team",
   ].join("\n");
   return sendMail({
     to: email,
     subject,
     text,
-    html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#f6f7f4;padding:32px;border-radius:16px"><div style="background:#0a2e1f;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px"><h1 style="color:#6ee7b7;margin:0;font-size:22px">🌿 Verdant</h1></div><h2 style="color:#0a2e1f;margin-top:0">Welcome to Verdant 🌿</h2><p style="color:#444;line-height:1.6">Hi ${escapeHtml(name)},</p><p style="color:#444;line-height:1.6">Your account has been <b>successfully created</b>. You can now log in to browse our plant collection, place orders, and manage your account.</p><div style="background:#fff;border:1px solid #d1fae5;border-radius:12px;padding:16px;margin:20px 0"><p style="margin:0;color:#065f46;font-size:14px">Need help? Contact our support team anytime.<br/>Happy planting! 🌱</p></div><p style="color:#666;font-size:13px">The Verdant Team</p></div>`,
+    html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#f6f7f4;padding:32px;border-radius:16px"><div style="background:#0a2e1f;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px"><h1 style="color:#6ee7b7;margin:0;font-size:22px">🌿 Shaji’s Nursery and Gardens</h1></div><h2 style="color:#0a2e1f;margin-top:0">Welcome to Shaji’s Nursery and Gardens 🌿</h2><p style="color:#444;line-height:1.6">Hi ${escapeHtml(name)},</p><p style="color:#444;line-height:1.6">Your account has been <b>successfully created</b>. You can now log in to browse our plant collection, place orders, and manage your account.</p><div style="background:#fff;border:1px solid #d1fae5;border-radius:12px;padding:16px;margin:20px 0"><p style="margin:0;color:#065f46;font-size:14px">Need help? Contact our support team anytime.<br/>Happy planting! 🌱</p></div><p style="color:#666;font-size:13px">The Shaji’s Nursery and Gardens Team</p></div>`,
   });
 };
 

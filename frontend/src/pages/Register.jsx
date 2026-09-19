@@ -1,9 +1,51 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import api from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
 import { useToast } from "../components/Toast";
+
+function EyeBtn({ show, onToggle }){
+  return (
+    <button type="button" onClick={onToggle} aria-label={show?'Hide password':'Show password'} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-[#f6f7f4] border border-[#e7e5e4] grid place-items-center text-[#57534e] hover:bg-white transition">
+      {show ? (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      )}
+    </button>
+  );
+}
+
+function FloatingField({ id, label, type='text', value, onChange, error, required, autoComplete, placeholder, rightSlot, ...rest }){
+  const [focused,setFocused]=useState(false);
+  const active = !!value || focused;
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={onChange}
+        onFocus={()=>setFocused(true)}
+        onBlur={()=>setFocused(false)}
+        placeholder=" "
+        required={required}
+        autoComplete={autoComplete}
+        aria-invalid={!!error}
+        aria-describedby={error?`${id}-error`:undefined}
+        className={`peer w-full bg-white border rounded-2xl px-4 pt-6 pb-2.5 text-sm outline-none transition shadow-sm placeholder-transparent ${rightSlot?'pr-12':''}
+          ${error?'border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-50':'border-[#e7e5e4] focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50 focus:bg-white'} ${focused?'ring-4 ring-emerald-50 border-emerald-300 bg-white':''}`}
+        {...rest}
+      />
+      <label htmlFor={id} className={`absolute left-4 transition-all duration-150 pointer-events-none ${active ? 'top-[7px] text-[11px] font-black tracking-widest uppercase text-emerald-700' : 'top-[14px] text-sm text-[#8a857e]'} peer-focus:top-[7px] peer-focus:text-[11px] peer-focus:font-black peer-focus:tracking-widest peer-focus:uppercase peer-focus:text-emerald-700`}>
+        {label}
+      </label>
+      {rightSlot}
+      {error && <p id={`${id}-error`} className="mt-1.5 text-xs font-semibold text-red-600">{error}</p>}
+    </div>
+  );
+}
 
 export default function Register() {
   const { t } = useLanguage();
@@ -21,21 +63,35 @@ export default function Register() {
     terms: false,
   });
   const [err, setErr] = useState("");
+  const [fieldErr, setFieldErr] = useState({});
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1);
+  const [showPw, setShowPw] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showAddress, setShowAddress] = useState(false);
   const { login } = useAuth();
   const nav = useNavigate();
   const { success, error: toastError } = useToast();
 
+  const strength = useMemo(()=>{
+    const p=form.password;
+    if(!p) return 0;
+    let s=0;
+    if(p.length>=6) s+=25;
+    if(p.length>=8) s+=25;
+    if(/[A-Z]/.test(p) && /[0-9]/.test(p)) s+=25;
+    if(/[^A-Za-z0-9]/.test(p)) s+=25;
+    return Math.min(100,s);
+  },[form.password]);
+  const strengthLabel = strength<30?'Weak':strength<60?'Fair':strength<85?'Good':'Strong';
+  const strengthColor = strength<30?'bg-red-500':strength<60?'bg-amber-500':strength<85?'bg-emerald-500':'bg-[#0a2e1f]';
+
   const getLocation = () => {
-    if (!navigator.geolocation) return alert("Geolocation not supported");
+    if (!navigator.geolocation) return toastError("Geolocation not supported");
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         try {
-          const r = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
-          );
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const d = await r.json();
           const addr = d.address || {};
           setForm((f) => ({
@@ -46,24 +102,39 @@ export default function Register() {
             postal_code: addr.postcode || "",
             country: addr.country || "India",
           }));
+          setShowAddress(true);
+          success('Address filled from location');
         } catch {
-          alert(`Lat ${latitude}, Lon ${longitude} - fill manually`);
+          toastError(`Lat ${latitude}, Lon ${longitude} — please fill manually`);
         }
       },
-      () => alert("Enable location permission"),
+      () => toastError("Enable location permission"),
     );
+  };
+
+  const validate=()=>{
+    const e={};
+    if(!form.name.trim()) e.name='Name is required';
+    else if(form.name.trim().length<2) e.name='At least 2 characters';
+    if(!form.email.trim()) e.email='Email is required';
+    else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email='Enter a valid email';
+    if(!form.phone.trim()) e.phone='Phone is required';
+    else if(!/^[\d+\-\s]{8,15}$/.test(form.phone)) e.phone='Enter a valid phone';
+    if(!form.password) e.password='Password is required';
+    else if(form.password.length<6) e.password='Minimum 6 characters';
+    if(form.confirm!==form.password) e.confirm='Passwords do not match';
+    if(!form.terms) e.terms='Please accept the terms';
+    return e;
   };
 
   const submit = async (e) => {
     e.preventDefault();
-    if (form.password !== form.confirm) {
-      setErr("Passwords mismatch");
-      toastError("Passwords do not match");
-      return;
-    }
-    if (!form.terms) {
-      setErr("Accept Terms");
-      toastError("Please accept the terms");
+    const v=validate();
+    setFieldErr(v);
+    if(Object.keys(v).length){
+      const first = Object.values(v)[0];
+      setErr(first);
+      toastError(first);
       return;
     }
     setLoading(true);
@@ -83,7 +154,8 @@ export default function Register() {
         },
       });
       login(r.data.token, r.data.user);
-      success("Account created successfully");
+      success("Account created successfully — welcome to GreenNest!");
+      try{ window.dispatchEvent(new CustomEvent('show-ai-feature',{detail:{source:'signup'}})); }catch{}
       nav("/dashboard");
     } catch (e) {
       const message = e.response?.data?.error || "Registration failed";
@@ -94,316 +166,115 @@ export default function Register() {
     }
   };
 
-  const inputCls =
-    "w-full bg-white border-2 border-gray-100 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50";
+  const inputCls = "w-full bg-white border border-[#e7e5e4] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50";
 
   return (
-    <div className="min-h-[90vh] bg-[#f6f7f4] flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-[1080px] bg-white rounded-[28px] border shadow-xl overflow-hidden grid lg:grid-cols-[1.15fr_0.85fr]">
-        {/* form */}
-        <div className="p-6 md:p-8">
-          <Link
-            to="/"
-            className="text-sm font-bold text-gray-600 hover:text-[#0a2e1f]"
-          >
-            ← Verdant
-          </Link>
-          <h1 className="mt-3 text-[28px] font-black tracking-tight leading-none">
-            {t("auth_join_us")}{" "}
-            <span className="text-emerald-700">{t("auth_join_year")}</span>
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">{t("auth_get_off")}</p>
+    <div className="min-h-[90vh] bg-[#fdfbf7] relative overflow-hidden flex items-center justify-center px-4 py-10">
+      <div className="pointer-events-none absolute -top-24 -left-24 w-[520px] h-[520px] bg-[#e8f0e3] rounded-full blur-[90px] opacity-70" />
+      <div className="pointer-events-none absolute -bottom-24 -right-24 w-[520px] h-[520px] bg-emerald-100/50 rounded-full blur-[90px] opacity-60" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.03]" style={{backgroundImage:`radial-gradient(#0a2e1f 1px, transparent 1px)`, backgroundSize:'22px 22px'}} />
 
-          <div className="mt-5 flex gap-2">
-            {[
-              { n: 1, label: t("auth_account") },
-              { n: 2, label: t("auth_address") },
-            ].map((s) => (
-              <div
-                key={s.n}
-                className={`flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 ${step === s.n ? "bg-[#0a2e1f] text-white border-[#0a2e1f]" : "bg-white border-gray-100 text-gray-500"}`}
-              >
-                <span
-                  className={`w-7 h-7 rounded-full grid place-items-center text-xs font-black ${step === s.n ? "bg-white text-[#0a2e1f]" : "bg-gray-100"}`}
-                >
-                  {s.n}
-                </span>
-                <span className="text-xs font-black tracking-widest uppercase">
-                  {s.label}
-                </span>
-              </div>
-            ))}
+      <div className="relative w-full max-w-[520px]">
+        <Link to="/" className="mx-auto mb-5 flex items-center justify-center gap-2 text-xs font-black tracking-widest uppercase text-[#a8a29e]">
+          <span className="w-6 h-6 rounded-full bg-[#0a2e1f] text-white grid place-items-center text-[11px]">🌿</span> GreenNest • Est. 2022
+        </Link>
+
+        <div className="bg-white/85 backdrop-blur-2xl border border-white/60 rounded-[28px] shadow-card overflow-hidden">
+          <div className="px-7 md:px-8 pt-8 pb-2 text-center">
+            <div className="mx-auto w-11 h-11 rounded-2xl bg-[#0a2e1f] text-white grid place-items-center shadow-lg shadow-emerald-900/20">🌿</div>
+            <h1 className="mt-4 text-[26px] font-black tracking-tight leading-none" style={{fontFamily:'Outfit, sans-serif'}}>
+              {t("auth_join_us") || 'Join GreenNest'} <span className="text-emerald-700">{t("auth_join_year") || '— grow with us'}</span>
+            </h1>
+            <p className="mt-1.5 text-sm text-[#57534e]">{t("auth_get_off") || 'Create your account • 50,000+ plant parents • Care support on WhatsApp'}</p>
           </div>
 
-          <form onSubmit={submit} className="mt-6 space-y-4">
+          {/* role hint */}
+          <div className="mx-7 md:mx-8 mt-5 bg-[#f6f7f4] border border-[#e7e5e4] rounded-2xl px-3.5 py-3 flex gap-3 items-center">
+            <span className="w-9 h-9 rounded-xl bg-white border border-[#e7e5e4] grid place-items-center shrink-0">🌱</span>
+            <div className="text-xs leading-5">
+              <div className="font-black tracking-widest uppercase text-[#0a2e1f] text-[11px]">You join as Plant Lover</div>
+              <div className="text-[#57534e] font-medium">Shop, track orders & get WhatsApp care. Admin is verified manually — no self-elevate.</div>
+            </div>
+          </div>
+
+          <form onSubmit={submit} noValidate className="px-7 md:px-8 py-6 space-y-4">
             {err && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-                {err}
+              <div role="alert" className="bg-red-50 border border-red-200 text-red-800 px-3.5 py-3 rounded-2xl text-sm flex gap-2.5 items-start">
+                <span className="w-7 h-7 rounded-full bg-red-600 text-white grid place-items-center shrink-0 text-xs font-black">!</span>
+                <span className="leading-5 font-medium">{err}</span>
               </div>
             )}
 
-            {step === 1 ? (
-              <>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-black tracking-widest uppercase text-gray-600">
-                      {t("auth_full_name")}
-                    </label>
-                    <input
-                      placeholder="Priya Sharma"
-                      value={form.name}
-                      onChange={(e) =>
-                        setForm({ ...form, name: e.target.value })
-                      }
-                      className={inputCls + " mt-1.5"}
-                      required
-                    />
+            <div className="grid md:grid-cols-2 gap-4">
+              <FloatingField id="reg-name" label={t("auth_full_name")||'Full name'} value={form.name} onChange={(e)=>setForm({ ...form, name: e.target.value })} error={fieldErr.name} required autoComplete="name" placeholder="Priya Sharma" />
+              <FloatingField id="reg-phone" label={t("auth_phone")||'Phone'} value={form.phone} onChange={(e)=>setForm({ ...form, phone: e.target.value })} error={fieldErr.phone} required autoComplete="tel" placeholder="+91 98765 43210" />
+            </div>
+
+            <FloatingField id="reg-email" label={t("auth_email")||'Email address'} type="email" value={form.email} onChange={(e)=>setForm({ ...form, email: e.target.value })} error={fieldErr.email} required autoComplete="email" placeholder="you@email.com" />
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <FloatingField id="reg-password" label={t("auth_password")||'Password'} type={showPw?'text':'password'} value={form.password} onChange={(e)=>setForm({ ...form, password: e.target.value })} error={fieldErr.password} required autoComplete="new-password" placeholder="••••••••" rightSlot={<EyeBtn show={showPw} onToggle={()=>setShowPw(!showPw)} />} />
+              <FloatingField id="reg-confirm" label={t("auth_confirm")||'Confirm password'} type={showConfirm?'text':'password'} value={form.confirm} onChange={(e)=>setForm({ ...form, confirm: e.target.value })} error={fieldErr.confirm} required autoComplete="new-password" placeholder="••••••••" rightSlot={<EyeBtn show={showConfirm} onToggle={()=>setShowConfirm(!showConfirm)} />} />
+            </div>
+
+            {/* strength */}
+            <div className="bg-emerald-50/70 border border-emerald-100 rounded-2xl px-3.5 py-3 flex items-center gap-3">
+              <div className="flex-1 h-2 bg-white rounded-full overflow-hidden border border-[#e7e5e4]">
+                <div className={`h-full ${strengthColor} transition-all duration-300`} style={{ width: `${strength}%` }} />
+              </div>
+              <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${strength<30?'bg-red-50 text-red-700 border-red-200':strength<60?'bg-amber-50 text-amber-800 border-amber-200':strength<85?'bg-emerald-50 text-emerald-700 border-emerald-200':'bg-[#0a2e1f] text-white border-[#0a2e1f]'}`}>{t("auth_strength")||strengthLabel} • {strength}%</span>
+            </div>
+
+            {/* address collapsible - preserve logic */}
+            <div className="rounded-2xl border border-[#e7e5e4] overflow-hidden bg-[#fdfbf7]">
+              <button type="button" onClick={()=>setShowAddress(!showAddress)} className="w-full flex items-center justify-between px-4 py-3 text-sm font-black hover:bg-white transition">
+                <span className="flex items-center gap-2"><span className="w-7 h-7 rounded-full bg-white border grid place-items-center text-xs">📍</span> {t("auth_where_deliver")||'Delivery address'} <span className="text-xs font-bold text-[#a8a29e] hidden sm:inline">(optional — add later in checkout)</span></span>
+                <span className={`w-7 h-7 rounded-full grid place-items-center border text-xs transition ${showAddress?'bg-[#0a2e1f] text-white border-[#0a2e1f] rotate-180':'bg-white text-[#57534e]'}`}>⌄</span>
+              </button>
+              {showAddress && (
+                <div className="px-4 pb-4 space-y-3 border-t border-[#e7e5e4] bg-white">
+                  <div className="flex justify-end pt-3">
+                    <button type="button" onClick={getLocation} className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-full font-black hover:bg-emerald-700 transition">📍 {t("auth_use_location")||'Use my location'}</button>
                   </div>
-                  <div>
-                    <label className="text-xs font-black tracking-widest uppercase text-gray-600">
-                      {t("auth_phone")}
-                    </label>
-                    <input
-                      placeholder="+91 98765 43210"
-                      value={form.phone}
-                      onChange={(e) =>
-                        setForm({ ...form, phone: e.target.value })
-                      }
-                      className={inputCls + " mt-1.5"}
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-black tracking-widest uppercase text-gray-600">
-                    {t("auth_email")}
-                  </label>
-                  <input
-                    placeholder="you@email.com"
-                    type="email"
-                    value={form.email}
-                    onChange={(e) =>
-                      setForm({ ...form, email: e.target.value })
-                    }
-                    className={inputCls + " mt-1.5"}
-                    required
-                  />
-                </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-black tracking-widest uppercase text-gray-600">
-                      {t("auth_password")}
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="••••••••"
-                      value={form.password}
-                      onChange={(e) =>
-                        setForm({ ...form, password: e.target.value })
-                      }
-                      className={inputCls + " mt-1.5"}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-black tracking-widest uppercase text-gray-600">
-                      {t("auth_confirm")}
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="••••••••"
-                      value={form.confirm}
-                      onChange={(e) =>
-                        setForm({ ...form, confirm: e.target.value })
-                      }
-                      className={inputCls + " mt-1.5"}
-                      required
-                    />
+                  <input placeholder={t("auth_street_house")||'Street / House no.'} value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} className={inputCls} />
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <input placeholder={t("auth_city")||'City'} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className={inputCls} />
+                    <input placeholder={t("auth_state")||'State'} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className={inputCls} />
+                    <input placeholder={t("auth_postal")||'Postal code'} value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} className={inputCls} />
+                    <input placeholder={t("auth_country")||'Country'} value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className={inputCls} />
                   </div>
                 </div>
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 flex items-center gap-2 text-xs">
-                  <div className="flex-1 h-2 bg-white rounded-full overflow-hidden border">
-                    <div
-                      className="h-full bg-emerald-600 transition-all"
-                      style={{
-                        width: `${Math.min(100, form.password.length * 13)}%`,
-                      }}
-                    ></div>
-                  </div>
-                  <span className="font-bold text-emerald-700">
-                    {t("auth_strength")}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (
-                      !form.name ||
-                      !form.email ||
-                      !form.phone ||
-                      !form.password
-                    )
-                      return setErr("Fill all fields");
-                    if (form.password !== form.confirm)
-                      return setErr("Passwords mismatch");
-                    setErr("");
-                    setStep(2);
-                  }}
-                  className="w-full bg-[#0a2e1f] text-white py-3.5 rounded-full font-black text-sm hover:bg-black"
-                >
-                  {t("auth_continue_address")}
-                </button>
-                <p className="text-center text-sm text-gray-600">
-                  {t("auth_have_account")}{" "}
-                  <Link to="/login" className="font-black text-emerald-700">
-                    {t("auth_sign_in")}
-                  </Link>
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center justify-between">
-                  <h4 className="font-black text-sm">
-                    {t("auth_where_deliver")}
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={getLocation}
-                    className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-full font-black"
-                  >
-                    📍 {t("auth_use_location")}
-                  </button>
-                </div>
-                <input
-                  placeholder={t("auth_street_house")}
-                  value={form.street}
-                  onChange={(e) => setForm({ ...form, street: e.target.value })}
-                  className={inputCls}
-                />
-                <div className="grid md:grid-cols-2 gap-4">
-                  <input
-                    placeholder={t("auth_city")}
-                    value={form.city}
-                    onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    className={inputCls}
-                  />
-                  <input
-                    placeholder={t("auth_state")}
-                    value={form.state}
-                    onChange={(e) =>
-                      setForm({ ...form, state: e.target.value })
-                    }
-                    className={inputCls}
-                  />
-                  <input
-                    placeholder={t("auth_postal")}
-                    value={form.postal_code}
-                    onChange={(e) =>
-                      setForm({ ...form, postal_code: e.target.value })
-                    }
-                    className={inputCls}
-                  />
-                  <input
-                    placeholder={t("auth_country")}
-                    value={form.country}
-                    onChange={(e) =>
-                      setForm({ ...form, country: e.target.value })
-                    }
-                    className={inputCls}
-                  />
-                </div>
-                <label className="flex gap-2 text-xs leading-4 bg-[#f6f7f4] border rounded-xl p-3">
-                  <input
-                    type="checkbox"
-                    checked={form.terms}
-                    onChange={(e) =>
-                      setForm({ ...form, terms: e.target.checked })
-                    }
-                    className="mt-0.5"
-                  />{" "}
-                  <span>{t("auth_terms")}</span>
-                </label>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep(1)}
-                    className="flex-1 bg-white border-2 border-gray-100 py-3 rounded-full font-black text-sm"
-                  >
-                    {t("auth_back")}
-                  </button>
-                  <button
-                    disabled={loading}
-                    className="flex-[2] bg-emerald-600 text-white py-3.5 rounded-full font-black text-sm hover:bg-emerald-700 disabled:opacity-60"
-                  >
-                    {loading
-                      ? t("auth_creating")
-                      : t("auth_create_account_btn")}
-                  </button>
-                </div>
-              </>
-            )}
+              )}
+            </div>
+
+            <label className={`flex gap-2.5 text-xs leading-4 rounded-2xl p-3 border cursor-pointer select-none ${fieldErr.terms?'bg-red-50 border-red-200':'bg-[#f6f7f4] border-[#e7e5e4]'}`}>
+              <input type="checkbox" checked={form.terms} onChange={(e)=>setForm({ ...form, terms: e.target.checked })} className="mt-0.5 w-4 h-4 rounded border-2 accent-emerald-600" />
+              <span className="text-[#57534e]"><span className="font-bold text-[#1c1917]">I agree to the <Link to="/terms" className="underline decoration-emerald-300">Terms</Link> & <Link to="/privacy" className="underline decoration-emerald-300">Privacy</Link></span> — we’ll care for your data like our seedlings. No spam, WhatsApp only for order & care updates.</span>
+            </label>
+            {fieldErr.terms && <p className="text-xs font-semibold text-red-600 -mt-2">{fieldErr.terms}</p>}
+
+            <button disabled={loading} className="w-full bg-[#0a2e1f] text-white py-3.5 rounded-full font-black text-sm hover:bg-black transition disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-emerald-900/10 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200">
+              {loading ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" /> {t("auth_creating")||'Creating account…'} </> : <>{t("auth_create_account_btn")||'Create account'} <span aria-hidden="true">→</span></>}
+            </button>
+
+            <p className="text-center text-sm text-[#57534e]">
+              {t("auth_have_account")||'Already have an account?'} <Link to="/login" className="font-black text-emerald-700 hover:text-emerald-800 underline decoration-emerald-200 underline-offset-4">{t("auth_sign_in")||'Sign in'}</Link>
+            </p>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-[#e7e5e4]" />
+              <span className="text-[11px] font-black tracking-widest uppercase text-[#a8a29e]">Secure</span>
+              <div className="flex-1 h-px bg-[#e7e5e4]" />
+            </div>
+            <div className="flex gap-2 text-center text-xs">
+              <span className="flex-1 bg-[#f6f7f4] border border-[#e7e5e4] rounded-xl py-2 font-bold text-[#57534e]">🔒 Encrypted</span>
+              <span className="flex-1 bg-[#f6f7f4] border border-[#e7e5e4] rounded-xl py-2 font-bold text-[#57534e]">🌿 No spam</span>
+              <span className="flex-1 bg-amber-50 border border-amber-200 rounded-xl py-2 font-bold text-amber-900">2hr support</span>
+            </div>
           </form>
         </div>
 
-        {/* visual */}
-        <div className="hidden lg:flex bg-[#0a2e1f] text-white relative overflow-hidden flex-col p-8">
-          <img
-            src="https://images.unsplash.com/photo-1446071103084-c257b5f70672?w=800"
-            alt="nursery"
-            className="absolute inset-0 w-full h-full object-cover opacity-30"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0a2e1f] via-transparent to-transparent"></div>
-          <div className="relative">
-            <span className="bg-white text-[#0a2e1f] text-xs font-black px-3 py-1.5 rounded-full">
-              4 YEARS • 50K PLANTS
-            </span>
-            <h3 className="mt-4 text-[28px] font-black leading-none">
-              {t("auth_your_journey")}
-              <br />
-              <span className="font-serif italic font-normal text-emerald-300">
-                {t("auth_journey_span")}
-              </span>
-            </h3>
-            <p className="mt-3 text-sm text-white/80 leading-6">
-              {t("auth_since_desc")}
-            </p>
-          </div>
-          <div className="relative mt-auto space-y-3">
-            <div className="bg-white rounded-2xl p-4 text-gray-900 border shadow-xl">
-              <div className="text-xs font-black tracking-widest uppercase text-emerald-700">
-                {t("auth_perks")}
-              </div>
-              <ul className="mt-2 space-y-2 text-sm">
-                <li className="flex gap-2">
-                  <span className="text-emerald-600">✓</span>{" "}
-                  {t("auth_off_first")}
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-emerald-600">✓</span>{" "}
-                  {t("auth_track_orders")}
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-emerald-600">✓</span>{" "}
-                  {t("auth_whatsapp_care")}
-                </li>
-              </ul>
-            </div>
-            <div className="flex gap-2 text-center">
-              <div className="flex-1 bg-white/10 backdrop-blur border border-white/20 rounded-xl p-3">
-                <div className="font-black">50k+</div>
-                <div className="text-[11px] text-white/70">Plants</div>
-              </div>
-              <div className="flex-1 bg-white/10 backdrop-blur border border-white/20 rounded-xl p-3">
-                <div className="font-black">4.9★</div>
-                <div className="text-[11px] text-white/70">Rating</div>
-              </div>
-              <div className="flex-1 bg-white/10 backdrop-blur border border-white/20 rounded-xl p-3">
-                <div className="font-black">2022</div>
-                <div className="text-[11px] text-white/70">Est.</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <p className="mt-4 text-center text-[11px] leading-4 text-[#a8a29e]">By creating an account you agree to GreenNest care updates via email/WhatsApp. You can mute anytime in Dashboard.</p>
       </div>
     </div>
   );
