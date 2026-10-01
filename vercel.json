@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build --prefix frontend",
+  "buildCommand": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true npm run build --prefix frontend",
   "outputDirectory": "frontend/dist",
   "installCommand": "cd frontend && npm install",
   "framework": "vite",
