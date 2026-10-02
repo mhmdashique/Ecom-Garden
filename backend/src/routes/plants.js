@@ -60,7 +60,7 @@ const plantCreateSchema = Joi.object({
         priceMax: Joi.number().min(0).allow(null, ""),
         disabled: Joi.boolean().allow(null),
         note: Joi.string().allow("", null),
-      })
+      }),
     )
     .allow(null),
   type: Joi.string().allow("", null),
@@ -88,15 +88,28 @@ function normalizeImages(data) {
   return undefined;
 }
 
-const CATEGORY_ID_MAP = { "1": "Indoor Plants", "2": "Outdoor Plants", "3": "Succulents", "4": "Flowering Plants", "5": "Seeds & Tools" };
+const CATEGORY_ID_MAP = {
+  1: "Indoor Plants",
+  2: "Outdoor Plants",
+  3: "Succulents",
+  4: "Flowering Plants",
+  5: "Seeds & Tools",
+};
 
 function resolveCategoryIdMaybe(raw) {
   if (!raw) return raw;
   // already uuid
-  if (String(raw).match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return raw;
+  if (
+    String(raw).match(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    )
+  )
+    return raw;
   // numeric 1-5 -> name lookup, try to find uuid in memory db
   const name = CATEGORY_ID_MAP[String(raw)] || String(raw);
-  const found = db.categories.find((c) => c.name.toLowerCase() === name.toLowerCase() || c.id === String(raw));
+  const found = db.categories.find(
+    (c) => c.name.toLowerCase() === name.toLowerCase() || c.id === String(raw),
+  );
   // if found and found.id is uuid in supabase, use it; else keep name for supabase name lookup (handled async)
   return found ? found.id : raw;
 }
@@ -174,15 +187,26 @@ function sanitizePayload(raw, isUpdate = false) {
 
 async function resolveCategoryUuid(categoryId) {
   if (!categoryId) return null;
-  if (String(categoryId).match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return categoryId;
+  if (
+    String(categoryId).match(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    )
+  )
+    return categoryId;
   const name = CATEGORY_ID_MAP[String(categoryId)] || String(categoryId);
   if (!supabase) return categoryId;
   try {
-    const { data } = await supabase.from("categories").select("id").ilike("name", name).maybeSingle();
+    const { data } = await supabase
+      .from("categories")
+      .select("id")
+      .ilike("name", name)
+      .maybeSingle();
     if (data?.id) return data.id;
   } catch {}
   // fallback: try exact name in memory
-  const mem = db.categories.find((c) => c.name.toLowerCase() === name.toLowerCase());
+  const mem = db.categories.find(
+    (c) => c.name.toLowerCase() === name.toLowerCase(),
+  );
   return mem?.id || null;
 }
 
@@ -218,13 +242,19 @@ async function supabaseGetPlants({
       const mapped = CATEGORY_ID_MAP[String(category)] || String(category);
       const cat = categories.find(
         (c) =>
-          c.name.toLowerCase() === mapped.toLowerCase() || c.id === String(category) || c.id === mapped,
+          c.name.toLowerCase() === mapped.toLowerCase() ||
+          c.id === String(category) ||
+          c.id === mapped,
       );
       if (cat) query = query.eq("category_id", cat.id);
       else {
         // try Supabase lookup for uuid categories not in local list
         try {
-          const { data: sbCat } = await supabase.from("categories").select("id").ilike("name", mapped).maybeSingle();
+          const { data: sbCat } = await supabase
+            .from("categories")
+            .select("id")
+            .ilike("name", mapped)
+            .maybeSingle();
           if (sbCat?.id) query = query.eq("category_id", sbCat.id);
         } catch {}
       }
@@ -307,7 +337,9 @@ router.get("/", async (req, res) => {
     if (sb && sb.total >= db.plants.length && sb.total > 0) return res.json(sb);
   }
   // memory fallback — dedupe by id (fix reload duplicating products)
-  let result = [...new Map(db.plants.map(p=>[String(p.id),p])).values()].map(applyCatalogImageOverrides);
+  let result = [
+    ...new Map(db.plants.map((p) => [String(p.id), p])).values(),
+  ].map(applyCatalogImageOverrides);
   if (category)
     result = result.filter(
       (p) =>
