@@ -31,7 +31,7 @@ insert into users (name, email, password_hash, phone, role, email_verified)
 values (
   'Admin',
   'mohammedashiqueofficial7@gmail.com',
-  '$2a$10$y8mRl10UDywQnyPvp0kUYOltUKDdk2/8Zn1/x7Lr6/hBYMiYGR6BS',
+  '$2a$10$PyGwxfGBG4Yeegj2YS31muqQz6tOHx.eU5AXjye0W8dXAj0jQzl1G',
   '',
   'admin',
   true

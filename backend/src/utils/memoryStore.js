@@ -6,7 +6,7 @@ export const db = {
       name: "Admin",
       email: "mohammedashiqueofficial7@gmail.com",
       password_hash:
-        "$2a$10$jdZKfQIBI5YMay6r7VNtU.72.pyeTcwsx1eV9vfMBKT0FjBUcI8wG",
+        "$2a$10$PyGwxfGBG4Yeegj2YS31muqQz6tOHx.eU5AXjye0W8dXAj0jQzl1G",
       phone: "+1234567890",
       role: "admin",
       email_verified: true,
