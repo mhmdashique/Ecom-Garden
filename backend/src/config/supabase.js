@@ -12,7 +12,8 @@ dotenv.config(); // also try cwd for overrides
 // New keys from Supabase dashboard: https://supabase.com/dashboard/project/_/settings/api-keys
 const url = process.env.SUPABASE_URL;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || null;
-const secretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || null;
+// Always prefer the long service_role JWT for server-side DB access
+const secretKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || null;
 const jwksUrl = process.env.SUPABASE_JWKS_URL || (url ? `${url}/auth/v1/.well-known/jwks.json` : null);
 
 // Use secret key for server-side privileged access (bypasses RLS), fallback to publishable

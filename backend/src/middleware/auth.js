@@ -9,11 +9,11 @@ export const auth = (req, res, next) => {
     return res.status(401).json({ error: "Use Authorization: Bearer <token>" });
   }
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "dev_secret");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "dev_secret", { clockTolerance: 60 });
     req.user = decoded;
     next();
   } catch (e) {
-    return res.status(401).json({ error: "Invalid token" });
+    return res.status(401).json({ error: `Invalid token: ${e.message}` });
   }
 };
 
