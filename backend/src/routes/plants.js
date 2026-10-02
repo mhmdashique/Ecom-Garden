@@ -1,6 +1,7 @@
 import express from "express";
 import Joi from "joi";
 import { db, genId } from "../utils/memoryStore.js";
+import { applyCatalogImageOverrides } from "../utils/catalogImages.js";
 import { auth, adminOnly } from "../middleware/auth.js";
 import supabase from "../config/supabase.js";
 
@@ -259,7 +260,7 @@ async function supabaseGetPlants({
       data.forEach((p) => (p.images = map.get(p.id) || p.images || []));
     }
     return {
-      plants: data || [],
+      plants: (data || []).map(applyCatalogImageOverrides),
       total: count || 0,
       page,
       pages: Math.ceil((count || 0) / limit),
@@ -306,7 +307,7 @@ router.get("/", async (req, res) => {
     if (sb && sb.total >= db.plants.length && sb.total > 0) return res.json(sb);
   }
   // memory fallback — dedupe by id (fix reload duplicating products)
-  let result = [...new Map(db.plants.map(p=>[String(p.id),p])).values()];
+  let result = [...new Map(db.plants.map(p=>[String(p.id),p])).values()].map(applyCatalogImageOverrides);
   if (category)
     result = result.filter(
       (p) =>
@@ -387,15 +388,21 @@ router.get("/:id", async (req, res) => {
         // related
         const { data: relatedRaw } = await supabase
           .from("plants")
-          .select("id,name,price,images:plant_images(image_url)")
+          .select("id,name,sku,price,images:plant_images(image_url)")
           .eq("category_id", data.category_id)
           .neq("id", id)
           .limit(4);
-        const related = (relatedRaw || []).map((r) => ({
-          ...r,
-          images: r.images?.map?.((i) => i.image_url) || [],
-        }));
-        return res.json({ ...data, reviews: reviews || [], related });
+        const related = (relatedRaw || []).map((r) =>
+          applyCatalogImageOverrides({
+            ...r,
+            images: r.images?.map?.((i) => i.image_url) || [],
+          }),
+        );
+        return res.json({
+          ...applyCatalogImageOverrides(data),
+          reviews: reviews || [],
+          related,
+        });
       }
     } catch (e) {
       /* fallback */
@@ -407,7 +414,7 @@ router.get("/:id", async (req, res) => {
   const related = db.plants
     .filter((p) => p.category_id === plant.category_id && p.id !== plant.id)
     .slice(0, 4);
-  res.json({ ...plant, reviews, related });
+  res.json({ ...applyCatalogImageOverrides(plant), reviews, related });
 });
 
 router.post("/", auth, adminOnly, async (req, res) => {
