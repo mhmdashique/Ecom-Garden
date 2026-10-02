@@ -230,6 +230,13 @@ const HOST = process.env.HOST || "0.0.0.0";
 const PUBLIC_URL = (
   process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`
 ).replace(/\/$/, "");
+
+// Keep Render free tier awake (ping every 14 min)
+if (process.env.RENDER_EXTERNAL_URL) {
+  setInterval(() => {
+    fetch(`${PUBLIC_URL}/api/health`).catch(() => {});
+  }, 14 * 60 * 1000);
+}
 let server;
 if (!process.env.VERCEL) {
   server = app.listen(PORT, HOST, () =>

@@ -11,7 +11,7 @@ function getBaseUrl(){
   // In dev, Vite proxies /api -> http://localhost:5000
   return '/api';
 }
-const api = axios.create({ baseURL: getBaseUrl(), timeout: 12000 });
+const api = axios.create({ baseURL: getBaseUrl(), timeout: 60000 });
 api.defaults.headers.common['Cache-Control'] = 'no-cache';
 api.defaults.headers.common['Pragma'] = 'no-cache';
 api.interceptors.request.use(cfg=>{
