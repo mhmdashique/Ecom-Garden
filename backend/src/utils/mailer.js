@@ -4,21 +4,36 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const recipient = process.env.MAIL_TO || "admin2026@gmail.com";
+const defaultResendFrom = "onboarding@resend.dev";
 const smtpReady = Boolean(
   process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS,
 );
-const transporter = smtpReady
-  ? nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: String(process.env.SMTP_SECURE).toLowerCase() === "true",
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    })
-  : null;
+const isConfiguredMailFrom = (value = process.env.MAIL_FROM) => {
+  const mailFrom = String(value || "").trim();
+  if (!mailFrom) return false;
+  return mailFrom !== defaultResendFrom && !mailFrom.endsWith("@resend.dev");
+};
 
-if (process.env.MAIL_FROM === "onboarding@resend.dev") {
+const shouldUsePreviewTransport = (
+  mailFrom = process.env.MAIL_FROM,
+  ready = smtpReady,
+) => !ready || !isConfiguredMailFrom(mailFrom);
+const transporter =
+  smtpReady && isConfiguredMailFrom()
+    ? nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: String(process.env.SMTP_SECURE).toLowerCase() === "true",
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      })
+    : null;
+
+if (
+  process.env.MAIL_FROM === defaultResendFrom ||
+  process.env.MAIL_FROM?.endsWith("@resend.dev")
+) {
   console.warn(
-    "[mail] Resend test sender is active; customer acknowledgements require a verified MAIL_FROM domain or an allowed test recipient.",
+    "[mail] Resend test sender is active; set MAIL_FROM to a verified domain email like hello@greennest.com before sending to customers.",
   );
 }
 
@@ -33,7 +48,7 @@ if (transporter) {
     );
 } else {
   console.warn(
-    "[mail] SMTP is not configured; notifications will be logged as previews",
+    "[mail] SMTP is not configured or the sender is unverified; notifications will be logged as previews",
   );
 }
 
@@ -59,7 +74,7 @@ const sendMail = async ({ subject, text, html, replyTo, to }) => {
     html,
     replyTo,
   };
-  if (!transporter) {
+  if (!transporter || shouldUsePreviewTransport()) {
     const target = to || recipient;
     console.log(`[MAIL PREVIEW] ${subject} -> ${target}\n${text}`);
     return { sent: false, preview: true, to: target, subject, text };
@@ -153,7 +168,8 @@ export const thankYouContact = ({ name, email, subject }) => {
 };
 
 export const notifyRegistration = ({ name, email }) => {
-  const subject = "Welcome to Shaji’s Nursery and Gardens — Your account has been created";
+  const subject =
+    "Welcome to Shaji’s Nursery and Gardens — Your account has been created";
   const text = [
     `Hi ${name},`,
     "",
@@ -174,4 +190,10 @@ export const notifyRegistration = ({ name, email }) => {
   });
 };
 
-export { escapeHtml, recipient, sendMail };
+export {
+  escapeHtml,
+  recipient,
+  sendMail,
+  isConfiguredMailFrom,
+  shouldUsePreviewTransport,
+};
