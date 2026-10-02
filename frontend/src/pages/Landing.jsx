@@ -153,19 +153,6 @@ const FALLBACK_PLANTS = [
     images: ["/red calathea.jpg"],
     variants: [],
   },
-  {
-    id: "p1b",
-    name: "Snake Plant",
-    price: 120,
-    discount_price: 199,
-    stock_qty: 64,
-    sunlight: "Low",
-    rating: 4.6,
-    images: [
-      "https://images.unsplash.com/photo-1485955900006-10f4d324d411?w=600",
-    ],
-    variants: [],
-  },
 ];
 
 export default function Landing() {
@@ -288,7 +275,7 @@ export default function Landing() {
             style={{ transformOrigin: "50% 45%" }}
           >
             <img
-              src="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1920&q=80"
+              src="/curated-garden.jpg"
               alt=""
               className="w-full h-full object-cover scale-[1.06]"
               style={{ objectPosition: "50% 42%" }}
@@ -301,7 +288,7 @@ export default function Landing() {
             loop
             playsInline
             preload="metadata"
-            poster="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1920&q=80"
+            poster="/curated-garden.jpg"
             className="absolute inset-0 hidden md:block w-full h-full object-cover opacity-[0.12]"
             style={{ filter: "saturate(0.92) brightness(1.02)" }}
             onError={(e) => (e.currentTarget.style.display = "none")}
@@ -601,7 +588,7 @@ export default function Landing() {
                       type: "spring",
                       stiffness: 260,
                     }}
-                    src={`https://i.pravatar.cc/100?img=${i + 10}`}
+                    src={`/grower-${i + 10}.jpg`}
                     alt=""
                     className="w-8 h-8 rounded-full border-2 border-white object-cover shadow-sm"
                   />
@@ -809,8 +796,7 @@ export default function Landing() {
                           whileHover={{ scale: 1.06 }}
                           transition={{ duration: 0.7 }}
                           onError={(e) => {
-                            e.currentTarget.src =
-                              "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&q=60";
+                            e.currentTarget.src = "/curated-garden.jpg";
                           }}
                         />
                       ) : (
@@ -1228,8 +1214,8 @@ export default function Landing() {
           <Reveal delay={0.12}>
             <div className="mt-10 relative overflow-hidden rounded-[28px] md:rounded-[32px] border border-stone-100 shadow-[0_24px_48px_rgba(10,46,31,0.1)]">
               <img
-                src="https://images.unsplash.com/photo-1446071103084-c257b5f70672?w=1200&q=80"
-                alt="Shaji’s Nursery and Gardens greenhouse"
+                src="/curated-garden.jpg"
+                alt="Landscaped nursery garden path surrounded by mature plants"
                 className="w-full h-[380px] md:h-[460px] object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
@@ -1393,25 +1379,25 @@ export default function Landing() {
                   title: t("landing_handpicked_title"),
                   desc: t("landing_handpicked_desc"),
                   icon: "🤲",
-                  img: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400",
+                  img: "/handpicked.jpg",
                 },
                 {
                   title: t("landing_livepacked_title"),
                   desc: t("landing_livepacked_desc"),
                   icon: "📦",
-                  img: "https://images.unsplash.com/photo-1485955900006-10f4d324d411?w=400",
+                  img: "/live-packed.jpg",
                 },
                 {
                   title: t("landing_qr_title"),
                   desc: t("landing_qr_desc"),
                   icon: "📱",
-                  img: "https://images.unsplash.com/photo-1509423350716-97f9360b4e09?w=400",
+                  img: "/qr-care.jpg",
                 },
                 {
                   title: t("landing_lifetime_title"),
                   desc: t("landing_lifetime_desc"),
                   icon: "💬",
-                  img: "https://images.unsplash.com/photo-1446071103084-c257b5f70672?w=400",
+                  img: "/curated-office.jpg",
                 },
               ].map((card) => (
                 <motion.div
@@ -1458,7 +1444,7 @@ export default function Landing() {
             >
               <div className="flex items-center gap-3">
                 <img
-                  src="https://i.pravatar.cc/100?img=5"
+                  src="/grower-05.jpg"
                   alt="grower"
                   className="w-10 h-10 rounded-full object-cover border border-stone-200"
                 />
